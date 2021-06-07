@@ -316,7 +316,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
                         isWideFill = true;
                         number = shiftNumber;
                         symbol = symbols.get(number);
-                    } else pos += shiftAndSNumber.a; // if FILL_ALIGNMENT and FILL_SPACING is disabled, this value is always 0
+                    } else pos += shiftAndSNumber.a; // if FILL_ALIGNMENT is disabled, this value is always 0
                     if (width - pos - symbol.cols() < 2) break;
                     // specify that this is the fill symbol
                     isFill = true;

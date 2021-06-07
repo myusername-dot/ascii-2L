@@ -21,6 +21,7 @@ public class FillRingList implements Cloneable {
      * startPos, startPosPix - the symbol and the position at which this fill layer
      *  should start.
      * */
+    private static final int fillSpacing = FILL_ALIGNMENT ? FILL_SPACING : 0;
 
     private List<Pair<Integer, Integer>> WNLayer;
     private Iterator<Pair<Integer, Integer>> iter;
@@ -34,7 +35,7 @@ public class FillRingList implements Cloneable {
         for(int i = 0; i < pixLength; i++){
             if (pos <= i){
                 el++;
-                pos += WNLayer.get(el).a + FILL_SPACING;
+                pos += WNLayer.get(el).a + fillSpacing;
             }
             select.add(el);
         }
@@ -61,7 +62,7 @@ public class FillRingList implements Cloneable {
         size = arr.size();
         pixLength = 0;
         while (iter.hasNext())
-            pixLength += iter.next().a + FILL_SPACING;
+            pixLength += iter.next().a + fillSpacing;
         iter = arr.iterator();
         initSelect();
     }
@@ -75,7 +76,7 @@ public class FillRingList implements Cloneable {
         startPos = 0;
         startPosPix = WNLayer.get(0).a;
         size = 1;
-        pixLength = p.a + FILL_SPACING;
+        pixLength = p.a + fillSpacing;
         iter = WNLayer.iterator();
         initSelect();
     }
@@ -83,8 +84,8 @@ public class FillRingList implements Cloneable {
     public void add(Pair<Integer, Integer> var){
         WNLayer.add(var);
         size++;
-        pixLength += var.a + FILL_SPACING;
-        for (int i = 0; i < var.a + FILL_SPACING; i++)
+        pixLength += var.a + fillSpacing;
+        for (int i = 0; i < var.a + fillSpacing; i++)
             select.add(size - 1);
     }
 
@@ -126,7 +127,7 @@ public class FillRingList implements Cloneable {
         startPosPix = 0;
         for (int i = 0; i < startPos; i++) {
             next();
-            startPosPix += WNLayer.get(i).a + FILL_SPACING;
+            startPosPix += WNLayer.get(i).a + fillSpacing;
         }
         return this;
     }
@@ -151,7 +152,7 @@ public class FillRingList implements Cloneable {
         startPosPix = 0;
         for (int i = 0; i < startPos; i++) {
             next();
-            startPosPix += WNLayer.get(i).a + FILL_SPACING;
+            startPosPix += WNLayer.get(i).a + fillSpacing;
         }
         return this;
     }
@@ -165,7 +166,7 @@ public class FillRingList implements Cloneable {
     public Pair<Integer, Integer> next(int pos) {
         // the character is selected according to the position, as if the entire
         // line before it represented this fill layer.
-        if (!FILL_ALIGNMENT && size == 1) return new Pair<>(FILL_SPACING, WNLayer.get(0).b);
+        if (!FILL_ALIGNMENT && size == 1) return new Pair<>(fillSpacing, WNLayer.get(0).b);
         pos += startPosPix;
         int pixPos = pos % pixLength;
         int s = select.get(pixPos);
