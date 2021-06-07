@@ -1,8 +1,6 @@
 Create images and videos as full-fledged ASCII and UTF-8 art
 ---
-You can assign your characters using uploaded font, as well as create a background fill.
-
-A feature of the algorithm is the combination of foreground and background. The sketch is created based on the OpenCV adaptive threshold and expressed in base symbols selected, and then fill symbols are applied to paint the image with a gradient. You can also set the gradient layer not with a single character, but with a sentence or any set of unicode characters. If you create a video, you will see how the layer moves over time.
+You can select your characters and load the ttf font.
 
 ![preview](https://github.com/AndreiIljuhin/ascii-2L/blob/master/preview1.png)
 
