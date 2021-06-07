@@ -80,26 +80,26 @@ public class MainClass {
     private static final int     FRAMERATE = 0;        // 0 as source
     private static final int     CREATE_FRAMES = 0;    // 0 all
     private static final int     SKIPPED_FRAMES = 0;
-    public static  final int     MIN_WEIGHT = 0;
-    public static  final int     DIFF = 115;
+    public  static final int     MIN_WEIGHT = 0;
+    public  static final int     DIFF = 115;
     private static final boolean BACK_SUB = false;
-    public static  final boolean BAW = true;
-    public static  final int     LINE_SPACING = 0;
-    public static  int           SYMBOL_HEIGHT = 14;
-    public static  final int     SYMBOL_SPACING = 0;
-    public static  final int     SYMBOL_HORIZONTAL_SHIFT = 1;
-    public static  final int     FILL_SPACING = 0;
-    public static  final double  FILL_DEPTH = 100.;
-    public static  final boolean FILL_ALIGNMENT = false;
-    public static  final boolean SPLIT_FILL = false;
-    public static  final boolean SPIN = true;
+    public  static final boolean BAW = true;
+    public  static final int     LINE_SPACING = 0;
+    public  static       int     SYMBOL_HEIGHT = 14;
+    public  static final int     SYMBOL_SPACING = 0;
+    public  static final int     SYMBOL_HORIZONTAL_SHIFT = 1;
+    public  static final int     FILL_SPACING = 0;
+    public  static final double  FILL_DEPTH = 100.;
+    public  static final boolean FILL_ALIGNMENT = false;
+    public  static final boolean SPLIT_FILL = false;
+    public  static final boolean SPIN = true;
     private static final boolean USE_THRESH = true;
     private static final Pair<Integer, Integer> THRESH_COEFFICIENTS;
     private static final boolean USE_2_THRESH = false;
-    public static  final String  PATCH;
-    public static  final String  SYMBOLS_FOLDER = "MS_Gothic.ttf_14_00";
+    public  static final String  PATCH;
+    public  static final String  SYMBOLS_FOLDER = "MS_Gothic.ttf_14_00";
     private static       String  INPUT_FILE_NAME = "sample.webm";
-    public static  final boolean OUTPUT_FRAMES = true;
+    public  static final boolean OUTPUT_FRAMES = true;
     private static final boolean OUTPUT_VIDEO = true;
     private static final boolean OUTPUT_THRESH = true;
     private static final boolean OUTPUT_TEXT = true;
@@ -138,6 +138,7 @@ public class MainClass {
         time = System.currentTimeMillis() - time;
         System.out.println("Loaded in " + TimeUnit.MILLISECONDS.toSeconds(time) + "s");
         time = System.currentTimeMillis();
+
         symbols = new ArrayList<>(100);
         try (Stream<Path> paths = Files.walk(Paths
                 .get(PATCH + SYMBOLS_FOLDER))) {
@@ -153,6 +154,7 @@ public class MainClass {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
         chars = new ArrayList<>(symbols.size());
         try (Scanner sc = new Scanner(new File(PATCH + SYMBOLS_FOLDER + "\\chars.txt"))) {
             while (sc.hasNext()) {
@@ -162,6 +164,7 @@ public class MainClass {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
         try {
             if (chars.size() == 0) Logger.getGlobal().log(Level.INFO, "chars.size() == 0");
             else if (symbols.size() != chars.size())
@@ -193,20 +196,21 @@ public class MainClass {
         }
     }
 
-    private static Pair<Mat, Mat> createUtf8Mat(Mat threshImg, Mat grayImg, Optional<Mat> thresh2Img, int fNumber) {
-        final int count = grayImg.rows() / (SYMBOL_HEIGHT + LINE_SPACING);
-
-        CountDownLatch cdl = new CountDownLatch(count);
+    private static Pair<Mat, Mat> createUtf8Mat(Mat threshImg, Mat grayImg, Mat thresh2Img, int fNumber) {
+        final int numberOfRows = grayImg.rows() / (SYMBOL_HEIGHT + LINE_SPACING);
+        CountDownLatch cdl = new CountDownLatch(numberOfRows);
         int nOfThreads = Runtime.getRuntime().availableProcessors();
         ExecutorService executor = Executors.newFixedThreadPool(nOfThreads);
-        ArrayList<ProcessLine<Mat>> lines = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) {
+        ArrayList<ProcessLine<Mat>> lines = new ArrayList<>(numberOfRows);
+
+        // sending the lines for processing
+        for (int i = 0; i < numberOfRows; i++) {
             Mat threshLine = threshImg.submat(new Rect(0,
                     i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT));
             Mat grayLine = grayImg.submat(new Rect(0,
                     i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT));
-            if (thresh2Img.isPresent()) {
-                Mat thresh2Line = thresh2Img.get().submat(new Rect(0,
+            if (thresh2Img != null) {
+                Mat thresh2Line = thresh2Img.submat(new Rect(0,
                         i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT));
                 lines.add(new ProcessPixelLine(threshLine, grayLine, thresh2Line, cdl));
             } else lines.add(new ProcessPixelLine(threshLine, grayLine, fNumber, i + 1, cdl));
@@ -222,8 +226,8 @@ public class MainClass {
 
         Mat fin = new Mat(threshImg.rows(), threshImg.cols(), CV_8UC1, new Scalar(0.));
         Mat fill = new Mat(threshImg.rows(), threshImg.cols(), CV_8UC1, new Scalar(BAW ? 0. : 255.));
-        String[] textFin = new String[count];
-        for (int i = 0; i < count; i++) {
+        String[] textFin = new String[numberOfRows];
+        for (int i = 0; i < numberOfRows; i++) {
             Mat resultLine = lines.get(i).getResult();
             resultLine.copyTo(fin.submat(new Rect(0,
                     i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT)));
@@ -234,8 +238,10 @@ public class MainClass {
             fillLine.copyTo(fill.submat(new Rect(0, i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT)));
             if (chars.size() != 0) textFin[i] = lines.get(i).getTextResult();
         }
+
         if (OUTPUT_TEXT)
             writeLinesToFile(textFin, String.format("%s-%03d.txt", "text", fNumber));
+
         return new Pair<>(fin, fill);
     }
 
@@ -245,6 +251,9 @@ public class MainClass {
             fileName = args[0].contains("\\") ? args[0] : PATCH + "input&output\\" + args[0];
             INPUT_FILE_NAME = fileName.substring(fileName.lastIndexOf("\\") + 1);
         } else fileName = PATCH + "input&output\\" + INPUT_FILE_NAME;
+        String dstName = fileName.replace(fileName.
+                substring(fileName.lastIndexOf(".")), "_converted.webm");
+
         FFmpegFrameGrabber g = new FFmpegFrameGrabber(fileName);
         try {
             if (FRAMERATE > 0) g.setFrameRate(FRAMERATE);
@@ -257,8 +266,7 @@ public class MainClass {
             e.printStackTrace();
             FFmpegLogCallback.set();
         }
-        String dstName = fileName.replace(fileName.substring(fileName.lastIndexOf(".")),
-                "_converted.webm");
+
         FFmpegFrameRecorder recorder;
         if (OUTPUT_VIDEO) {
             recorder = new FFmpegFrameRecorder(dstName, g.getImageWidth(), g.getImageHeight(), g.getAudioChannels());
@@ -287,6 +295,7 @@ public class MainClass {
                 FFmpegLogCallback.set();
             }
         }
+
         BackgroundSubtractor backSub;
         Mat fgMask;
         if (BACK_SUB) {
@@ -294,6 +303,7 @@ public class MainClass {
             backSub = Video.createBackgroundSubtractorKNN(1, 50, false);
             //backSub = Video.createBackgroundSubtractorMOG2(1, 50, false);
         }
+
         Java2DFrameConverter java2dFrameConverter = new Java2DFrameConverter();
         OpenCVFrameConverter.ToOrgOpenCvCoreMat converter = new OpenCVFrameConverter.ToOrgOpenCvCoreMat();
         Frame fr;
@@ -301,22 +311,28 @@ public class MainClass {
         // shape == MORPH_RECT || shape == MORPH_CROSS || shape == MORPH_ELLIPSE
         Mat element1 = Imgproc.getStructuringElement(MORPH_ELLIPSE, new Size(2, 2));
         long time = System.currentTimeMillis(), timestamp;
+
         try {
             while ((fr = g.grab()) != null) {
                 timestamp = fr.timestamp;
+
                 if (fr.image != null) {
                     count++;
                     if (count <= SKIPPED_FRAMES) continue;
+
                     if (OUTPUT_ORIGINAL_FRAMES) {
                         ImageIO.write(java2dFrameConverter.convert(fr), "png",
                                 new File(String.format(PATCH + "input_frames\\frame-%03d.png", count)));
                     }
+
                     Mat grabbedImage = converter.convert(fr);
+
                     if (BACK_SUB) backSub.apply(grabbedImage, fgMask, 0.01);
+
                     Mat gray = new Mat(grabbedImage.rows(), grabbedImage.cols(), COLOR_BGR2GRAY);
                     Imgproc.cvtColor(grabbedImage, gray, COLOR_BGR2GRAY);
-                    Mat thresh = null;
-                    Mat thresh2 = null;
+
+                    Mat thresh, thresh2 = null;
                     if (USE_THRESH) {
                         thresh = new Mat(grabbedImage.rows(), grabbedImage.cols(), COLOR_BGR2GRAY);
                         if (!USE_2_THRESH) {
@@ -361,15 +377,15 @@ public class MainClass {
                             ImageIO.write(bi, "png", new File(PATCH + "thresh\\thresh1-" + count + ".png"));
                         }
                     } else thresh = gray;
+
                     // "lighten" the weight of the matrix
                     Mat dst = new Mat(thresh.rows(), thresh.cols(), thresh.type());
                     Core.add(new Mat(thresh.rows(), thresh.cols(), thresh.type(), new Scalar(MIN_WEIGHT + DIFF)), thresh, dst);
                     thresh = dst;
-                    Pair<Mat, Mat> result;
 
-                    result = createUtf8Mat(thresh, gray, Optional.ofNullable(thresh2), count);
-
+                    Pair<Mat, Mat> result = createUtf8Mat(thresh, gray, thresh2, count);
                     Frame convFr = converter.convert(result.a);
+
                     BufferedImage bi = java2dFrameConverter.getBufferedImage(convFr);
                     if (OUTPUT_FRAMES) {
                         String name = g.getFormat().matches(".*webm.*|.*mp4.*|.*m4v.*|.*mkv.*") ? "frame" : INPUT_FILE_NAME;
@@ -380,24 +396,29 @@ public class MainClass {
                             ImageIO.write(bi, "png", new File(String.format(PATCH + "fill\\%s-%03d.png", name, count)));
                         }
                     }
-                    fr = convFr;
+
                     System.out.printf("frame-%03d%n", count);
                     if (count == (SKIPPED_FRAMES + 500)) ProcessPixelLine.getSymbols().removeNull();
                     if (count % 500 == 0) ProcessPixelLine.getSymbols().outputStatsToFile();
                     if (CREATE_FRAMES > 0 && CREATE_FRAMES <= count) break;
+
+                    fr = convFr;
                 }
+
                 if (OUTPUT_VIDEO) {
                     fr.timestamp = timestamp;
                     recorder.setTimestamp(g.getTimestamp());
                     recorder.record(fr);
                 }
             }
+
             System.out.println("Runtime: " + TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - time) + "s");
             if (OUTPUT_VIDEO) {
                 recorder.stop();
                 recorder.release();
             }
             g.stop();
+
         } catch (Exception e) {
             e.printStackTrace();
             FFmpegLogCallback.set();
