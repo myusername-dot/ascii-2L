@@ -226,7 +226,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         if (bestC > diff) bestC = diff;
         diff = compare(left + SYMBOL_HORIZONTAL_SHIFT, symbol, cCr, -1);
         if (bestC > diff) bestC = diff;
-        if (bestC < 50) return 0;
+        //if (bestC < 50) return 0;
         if (flag != DONT_MOVE_X) {
             // Left
             diff = compare(left, symbol, cCr, 0);
@@ -235,7 +235,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
             if (bestC > diff) bestC = diff;
             diff = compare(left, symbol, cCr, -1);
             if (bestC > diff) bestC = diff;
-            if (bestC < 50) return 0;
+            //if (bestC < 50) return 0;
             // Right
             diff = compare(left + SYMBOL_HORIZONTAL_SHIFT * 2, symbol, cCr, 0);
             if (bestC > diff) bestC = diff;
@@ -243,7 +243,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
             if (bestC > diff) bestC = diff;
             diff = compare(left + SYMBOL_HORIZONTAL_SHIFT * 2, symbol, cCr, -1);
             if (bestC > diff) bestC = diff;
-            if (bestC < 50) return 0;
+            //if (bestC < 50) return 0;
         }
 
         return bestC;
@@ -334,9 +334,11 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
                     if (!waitNextSpace && symbol.cols() > Math.ceil(shiftSize * 1.5)) {
                         // we will use the wide character in the next step, if the main character is again a space
                         waitNextSpace = true;
+                        // in the meantime, we assign the character as a space
                         sNumber = shiftNumber;
                         symbol = symbols.get(sNumber);
-                    } else posPix += shiftPAndSNumber.a; // if FILL_ALIGNMENT is disabled, this value is always 0
+                    } else // the alignment is applied when we put the fill symbol
+                        posPix += shiftPAndSNumber.a; // if FILL_ALIGNMENT is disabled, this value is always 0
 
                     if (widthPix - posPix - symbol.cols() < 2) break;
                     isFillChar = true;
