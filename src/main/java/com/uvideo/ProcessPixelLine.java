@@ -6,10 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
@@ -41,10 +38,10 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
      * */
 
     private static CharacterSet<Mat> symbols;
-    private static List<FillRingList> fillNumbersStatic;
+    private static List<FillRingList> fillSNumbersStatic;
     //private final int LINE_NUMBER;
     //private final int FRAME_NUMBER;
-    private final List<FillRingList> fillNumbers;
+    private final List<FillRingList> fillSNumbers;
     private final Mat threshLine, grayLine, thresh2Line;
     private final Mat dstLine, fillLine;
     private final StringBuffer dstTextLine;
@@ -53,6 +50,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
     public static int setSymbols(List<File> sImages, List<Character> chars) throws IllegalArgumentException {
         if (sImages == null || sImages.size() == 0)
             throw new IllegalArgumentException("sImages == null || sImages.size() == 0");
+
         List<Integer> flags = new ArrayList<>(sImages.size());
         for (File sImage : sImages) {
             String name = sImage.getName();
@@ -84,6 +82,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
             symbols = new ArrayList<>(tempSymbols.size() * 3);
             Java2DFrameConverter java2dFrameConverter = new Java2DFrameConverter();
             OpenCVFrameConverter.ToOrgOpenCvCoreMat converter = new OpenCVFrameConverter.ToOrgOpenCvCoreMat();
+
             int count = 0;
             for (Mat symbol : tempSymbols) {
                 Mat white = new Mat(symbol.rows(), symbol.cols(), CV_8UC1, new Scalar(255));
@@ -122,24 +121,27 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
 //                    }
 //                }
 //        }
+
         ProcessPixelLine.symbols = new CharacterSet<>(Mat.class, symbols, flags, chars, 0.75);
-        fillNumbersStatic = new ArrayList<>();
+
+        fillSNumbersStatic = new ArrayList<>();
         List<Integer> symbolsFlags = ProcessPixelLine.symbols.getFlags();
         int currentLayerNumber = -1;
         for (int i = 0; i < symbolsFlags.size(); i++) {
             int flag = symbolsFlags.get(i);
             int sNumber = SPIN ? i * 3 : i;
-            if (flag == FILLING_SOLO) fillNumbersStatic.add(new FillRingList(
+            if (flag == FILLING_SOLO) fillSNumbersStatic.add(new FillRingList(
                     new Pair<>(symbols.get(sNumber).cols(), sNumber)));
             else if (flag / FILLING == 1) {
                 int number = flag % FILLING;
                 if (currentLayerNumber != number) {
-                    fillNumbersStatic.add(new FillRingList(new Pair<>(symbols.get(sNumber).cols(), sNumber)));
+                    fillSNumbersStatic.add(new FillRingList(new Pair<>(symbols.get(sNumber).cols(), sNumber)));
                     currentLayerNumber = number;
-                } else fillNumbersStatic.get(fillNumbersStatic.size() - 1)
+                } else fillSNumbersStatic.get(fillSNumbersStatic.size() - 1)
                         .add(new Pair<>(symbols.get(sNumber).cols(), sNumber));
             }
         }
+
         return symbols.get(0).rows();
     }
 
@@ -163,6 +165,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
             throw new NullPointerException("symbols are null, use setSymbols()");
         if (/*threshLine.type() != CV_8U || */thresh1Line.rows() != MainClass.SYMBOL_HEIGHT || thresh1Line.cols() < 100)
             throw new IllegalArgumentException("threshLine.rows() != 14 || threshLine.cols() < 100");
+
         //LINE_NUMBER = numberL;
         //FRAME_NUMBER = numberF;
         this.threshLine = thresh1Line;
@@ -172,11 +175,12 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         if (symbols.haveChars()) dstTextLine = new StringBuffer(thresh1Line.cols() / SYMBOL_HEIGHT / 2);
         else dstTextLine = null;
         fillLine = new Mat(thresh1Line.rows(), thresh1Line.cols(), CV_8UC1, new Scalar(BAW ? 0 : 255));
-        fillNumbers = new ArrayList<>(fillNumbersStatic.size());
-        for (var n : fillNumbersStatic) {
+
+        fillSNumbers = new ArrayList<>(fillSNumbersStatic.size());
+        for (var n : fillSNumbersStatic) {
             try {
-                if (swap) fillNumbers.add(n.clone().setIterWithFLSwap(numberF, numberL));
-                else fillNumbers.add(n.clone().setIterWithFL(numberF, numberL));
+                if (swap) fillSNumbers.add(n.clone().setIterWithFLSwap(numberF, numberL));
+                else fillSNumbers.add(n.clone().setIterWithFL(numberF, numberL));
             } catch (CloneNotSupportedException e) {
                 e.printStackTrace();
             }
@@ -200,16 +204,16 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         double sum = 0;
         for (int i = 0; i < symbol.rows(); i++)
             for (int j = 0; j < symbol.cols(); j++) {
-                double a, b, n;
-                if (flagH == 0) a = symbol.get(i, j)[0];
-                else if (flagH == 1 && i != 0) a = symbol.get(i - 1, j)[0];
-                else if (flagH == -1 && i != symbol.rows() - 1) a = symbol.get(i + 1, j)[0];
-                else a = 255;
-                b = threshLine.get(i, pos + j)[0];
-                n = a - b;
-                if (n < 0) n = -n;
-                if (n <= DIFF) continue;
-                sum += n;
+                double s, t, subMod;
+                if (flagH == 0) s = symbol.get(i, j)[0];
+                else if (flagH == 1 && i != 0) s = symbol.get(i - 1, j)[0];
+                else if (flagH == -1 && i != symbol.rows() - 1) s = symbol.get(i + 1, j)[0];
+                else s = 255;
+                t = threshLine.get(i, pos + j)[0];
+                subMod = s - t;
+                if (subMod < 0) subMod = -subMod;
+                if (subMod <= DIFF) continue;
+                sum += subMod;
             }
         return sum / (Math.pow(symbol.cols(), symbols.getCOEFFICIENT()) * (1 + (0. + cCr) * .15)) * 10;
     }
@@ -248,30 +252,35 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
     private int sSelect(int pos) {
         int width = threshLine.cols() - pos;
         if (width < 8) return -1;
+        final int shiftN = 0;
         int best = -1;
-        double bestC = Double.MAX_VALUE, diff;
-        Mat symbol;
+        double bestC = Double.MAX_VALUE;
+
         for (int i = 0; i < symbols.size(); i++) {
             if (!symbols.isValid(i)) continue;
-            symbol = symbols.get(i);
+            Mat symbol = symbols.get(i);
             if (width - symbol.cols() <= SYMBOL_HORIZONTAL_SHIFT + 1) continue;
-            if (i == 0) {
-                diff = compare(pos, symbol, symbols.getCorrection(i), 0);
+
+            if (i == shiftN) {
+                double diff = compare(pos, symbol, symbols.getCorrection(i), 0);
                 if (diff < 300) return i;
                 bestC = diff;
                 best = i;
                 if (SPIN) i += 2;
                 continue;
             }
+
             int flag = symbols.getFlag(i);
             if (SPIN && i % 3 != 0 && (flag == DONT_SPIN || flag == DONT_MOVE)) continue;
-            diff = width3Compare(pos - SYMBOL_HORIZONTAL_SHIFT, symbol, symbols.getCorrection(i), flag);
+
+            double diff = width3Compare(pos - SYMBOL_HORIZONTAL_SHIFT, symbol, symbols.getCorrection(i), flag);
             if (diff == 0) return i;
             if (bestC > diff) {
                 bestC = diff;
                 best = i;
             }
         }
+
         return best;
     }
 
@@ -289,57 +298,74 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
 
     @Override
     public void run() {
+        // sorry for this bad code, it's quite compact and there's a lot going on here
+
         //final Random random = new Random(FRAME_NUMBER + LINE_NUMBER);
-        int width = threshLine.cols();
-        int pos = 5, left = width - 5, shiftSize = symbols.get(0).cols();
+        int widthPix = threshLine.cols();
+        int posPix = 5, leftPix = widthPix - 5, shiftSize = symbols.get(0).cols();
         final int shiftNumber = 0;
-        // isWideFill - check for two spaces, and then put the symbol
-        boolean isFill, isWideFill = false;
-        while (left > 10) {
-            isFill = false;
-            int number = sSelect(pos);
-            if (number == -1) break;
-            Mat symbol = symbols.getWithInc(number);
-            if (grayLine != null && number == shiftNumber) {
-                // look at the gray pixel in the center
-                double pixel = grayLine.get(grayLine.rows() / 2, pos + symbol.cols() / 2)[0];
+
+        // waitNextSpace - if the fill symbol is wide enough relative to the space, we can't put it right away,
+        // as it may get on the future main contour symbol. instead, we go through two circles of the loop, if
+        // on the second circle again a space falls out of the main contour, and the background again meets the
+        // fill requirement (pixel < FILL_DEPTH), we move back and put a wide character.
+        boolean isFillChar, waitNextSpace = false;
+        while (leftPix > 10) {
+            isFillChar = false;
+            int sNumber = sSelect(posPix);
+            if (sNumber == -1) break;
+
+            Mat symbol = symbols.getWithInc(sNumber);
+
+            if (grayLine != null && sNumber == shiftNumber) {
+                // checking the gray pixel behind the symbol
+                double pixel = grayLine.get(grayLine.rows() / 2, posPix + symbol.cols() / 2)[0];
                 // if there is a second thresh, make sure that there is no dark pixel on it
-                if (pixel < FILL_DEPTH && fillNumbers.size() > 0 && (thresh2Line == null ||
-                        thresh2Line.get(thresh2Line.rows() / 2, pos + symbol.cols() / 2)[0] < 200.)) {
+                if (pixel < FILL_DEPTH && fillSNumbers.size() > 0 && (thresh2Line == null ||
+                        thresh2Line.get(thresh2Line.rows() / 2, posPix + symbol.cols() / 2)[0] < 200.)) {
                     // move to the previous position and put a wide symbol
-                    if (isWideFill) pos -= shiftSize;
-                    Pair<Integer, Integer> shiftAndSNumber = fillNumbers.get((int) ((fillNumbers.size()) * pixel / FILL_DEPTH)).next(pos);
-                    number = shiftAndSNumber.b;
-                    symbol = symbols.get(number);
-                    if (!isWideFill && symbol.cols() > Math.ceil(shiftSize * 1.5)) {
+                    if (waitNextSpace) posPix -= shiftSize;
+                    // we select the fill according to the brightness of the pixel
+                    Pair<Integer, Integer> shiftPAndSNumber = fillSNumbers
+                            .get((int) ((fillSNumbers.size()) * pixel / FILL_DEPTH)).next(posPix);
+                    sNumber = shiftPAndSNumber.b;
+                    symbol = symbols.get(sNumber);
+
+                    if (!waitNextSpace && symbol.cols() > Math.ceil(shiftSize * 1.5)) {
                         // we will use the wide character in the next step, if the main character is again a space
-                        isWideFill = true;
-                        number = shiftNumber;
-                        symbol = symbols.get(number);
-                    } else pos += shiftAndSNumber.a; // if FILL_ALIGNMENT is disabled, this value is always 0
-                    if (width - pos - symbol.cols() < 2) break;
-                    // specify that this is the fill symbol
-                    isFill = true;
-                } else isWideFill = false;
-            } else isWideFill = false;
-            Optional<Character> charOp = symbols.getChar(number);
-            if (charOp.isPresent()) {
+                        waitNextSpace = true;
+                        sNumber = shiftNumber;
+                        symbol = symbols.get(sNumber);
+                    } else posPix += shiftPAndSNumber.a; // if FILL_ALIGNMENT is disabled, this value is always 0
+
+                    if (widthPix - posPix - symbol.cols() < 2) break;
+                    isFillChar = true;
+                } else waitNextSpace = false;
+            } else waitNextSpace = false;
+
+            // writing a text character
+            Optional<Character> charOp = symbols.getChar(sNumber);
+            if (dstTextLine != null && charOp.isPresent()) {
                 char c = charOp.get();
                 //if (c == 'r') c = (char) (random.nextInt(8) + 50);
-                // remove the extra space
-                if (isWideFill && number != shiftNumber)
-                    dstTextLine.deleteCharAt(dstTextLine.length() - 1);
+                // it will work in the second round, just before waitNextSpace becomes false
+                if (sNumber != shiftNumber && waitNextSpace)
+                    dstTextLine.deleteCharAt(dstTextLine.length() - 1); // remove the extra space
                 dstTextLine.append(c);
             }
+
+            // printing a pixel character
             // the pixel line is filled with white or black pixels by default
-            if (number != shiftNumber) {
-                addPixSymbol(symbol, pos, isFill);
-                pos += SYMBOL_SPACING;
-                isWideFill = false;
+            if (sNumber != shiftNumber) {
+                addPixSymbol(symbol, posPix, isFillChar);
+                posPix += SYMBOL_SPACING;
+                waitNextSpace = false;
             }
-            pos += symbol.cols();
-            left = width - pos;
+
+            posPix += symbol.cols();
+            leftPix = widthPix - posPix;
         }
+
         latch.countDown();
     }
 
@@ -356,7 +382,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         else return "";
     }
 
-    public List<FillRingList> getFillNumbers() {
-        return fillNumbers;
+    public List<FillRingList> getFillSNumbers() {
+        return fillSNumbers;
     }
 }
