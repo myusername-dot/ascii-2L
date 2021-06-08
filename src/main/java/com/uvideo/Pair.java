@@ -10,7 +10,6 @@ public class Pair<T, U> {
         this.b = b;
     }
 
-
     @Override
     public String toString() {
         return "Pair{" +

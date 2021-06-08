@@ -343,6 +343,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
                     if (widthPix - posPix - symbol.cols() < 2) break;
                     isFillChar = true;
                 } else waitNextSpace = false;
+
             } else waitNextSpace = false;
 
             // writing a text character
@@ -371,14 +372,17 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         latch.countDown();
     }
 
+    @Override
     public Mat getResult() {
         return dstLine;
     }
 
+    @Override
     public Mat getFill() {
         return fillLine;
     }
 
+    @Override
     public String getTextResult() {
         if (dstTextLine != null) return dstTextLine.toString();
         else return "";

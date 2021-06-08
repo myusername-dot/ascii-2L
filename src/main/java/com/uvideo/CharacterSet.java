@@ -63,19 +63,20 @@ public class CharacterSet<T> {
     public CharacterSet(Class<T> clazz, List<T> symbols, List<Integer> flags, List<Character> chars,
                         double COEFFICIENT) {
         if (symbols == null) throw new NullPointerException("symbols == null");
+        size = symbols.size();
         if (chars != null && chars.size() != 0) {
             if (chars.size() != flags.size())
                 throw new IllegalArgumentException("chars != null && chars.size() != 0 && chars.size() != flags.size()");
-            if (SPIN && symbols.size() / 3 != chars.size() || !SPIN && symbols.size() != chars.size())
+            if (SPIN && size / 3 != chars.size() || !SPIN && size != chars.size())
                 throw new IllegalArgumentException("chars != null && chars.size() != 0 && SPIN && symbols.size() / 3 != chars.size() || !SPIN && symbols.size() != chars.size()");
         }
-        if (SPIN && symbols.size() / 3 != flags.size() || !SPIN && symbols.size() != flags.size())
+        if (SPIN && size / 3 != flags.size() || !SPIN && size != flags.size())
             throw new IllegalArgumentException("SPIN && symbols.size() / 3 != flags.size() || !SPIN && symbols.size() != flags.size()");
-        size = symbols.size();
         if (SPIN) {
             if (size % 3 != 0) throw new IllegalArgumentException("symbols.size() % 3 != 0 && MainClass.SPIN");
             uniqueSize = size / 3;
         } else uniqueSize = size;
+
         this.symbols = (T[]) Array.newInstance(clazz, size);
         this.flags = new int[uniqueSize];
         if (chars != null && chars.size() != 0) this.chars = new char[uniqueSize];
@@ -83,6 +84,7 @@ public class CharacterSet<T> {
         used = new AtomicLong[uniqueSize];
         valid = new boolean[uniqueSize];
         correction = new double[size];
+
         for (int i = 0; i < uniqueSize; i++) {
             int flag = flags.get(i);
             this.flags[i] = flag;
@@ -90,6 +92,7 @@ public class CharacterSet<T> {
             valid[i] = flag != FILLING_SOLO && flag != FALSE && flag / FILLING != 1;
             if (this.chars != null) this.chars[i] = chars.get(i);
         }
+
         for (int i = 0; i < size; i++) {
             T symbol = symbols.get(i);
             this.symbols[i] = symbol;
@@ -117,6 +120,7 @@ public class CharacterSet<T> {
             }
             correction[i] = cCr;
         }
+
         this.COEFFICIENT = COEFFICIENT;
         currentUSize = (int) (Booleans.asList(valid).stream().filter(Boolean::booleanValue).count());
         Logger.getGlobal().log(Level.INFO, "number of valid characters without fill: " + currentUSize);

@@ -276,7 +276,7 @@ public class MainClass {
             recorder.setAudioMetadata(g.getAudioMetadata());
             recorder.setVideoMetadata(g.getVideoMetadata());
             recorder.setVideoCodec(AV_CODEC_ID_VP9);
-            recorder.setVideoBitrate(1500000);
+            recorder.setVideoBitrate(2500000);
             recorder.setAudioBitrate(128000);
 //                HashMap<String, String> options = new HashMap<>();
 //                options.put("codec:v", "libvpx-vp9");
