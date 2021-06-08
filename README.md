@@ -5,8 +5,6 @@ Create images and videos as full-fledged ASCII and UTF-8 art
 You can select your characters and load the ttf font.
 The algorithm is based on the opencv Adaptive Gaussian Threshold.
 
-![preview](https://github.com/AndreiIljuhin/ascii-2L/blob/master/preview1.png)
-
 How to use
 ---
 Clone the repository and open it in the Java IDE, ask ide to load the dependencies in the pom file. Change the INPUT_FILE_NAME string in MainClass.java by file name and move the file to the \data_set\input&output directory, run the main.
