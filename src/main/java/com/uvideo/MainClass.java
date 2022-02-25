@@ -17,6 +17,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
+import net.coobird.thumbnailator.Thumbnails;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacv.*;
 
@@ -40,6 +41,9 @@ public class MainClass {
     /**
      * all distances are specified in pixels
      * any colors are represented as single-channel gray images 0..255
+     * FLUCTUATIONS_HEIGHT - percentage of deviation from the height when building
+     * a symbolic image. the text output will be different, but the output images
+     * will be fixed size
      * MIN_WEIGHT - minimum character pixel weight
      * DIFF - the difference between the weight of the maximum black pixels of the
      * symbol and the threshold when calculating the match amount. note that
@@ -77,6 +81,7 @@ public class MainClass {
      */
 
     private static final int     HEIGHT = 480;         // 0 as source
+    private static final double  FLUCTUATIONS_HEIGHT = 0;
     private static final int     FRAMERATE = 0;        // 0 as source
     private static final int     CREATE_FRAMES = 0;    // 0 all
     private static final int     SKIPPED_FRAMES = 0;
@@ -245,6 +250,10 @@ public class MainClass {
         return new Pair<>(fin, fill);
     }
 
+    public static BufferedImage resize(BufferedImage img, int newW, int newH) throws IOException {
+        return Thumbnails.of(img).forceSize(newW, newH).asBufferedImage();
+    }
+
     public static void main(String[] args) {
         String fileName;
         if (args.length > 0) {
@@ -266,6 +275,7 @@ public class MainClass {
             e.printStackTrace();
             FFmpegLogCallback.set();
         }
+        final int totalCreateVFrames =  g.getLengthInVideoFrames() - SKIPPED_FRAMES;
 
         FFmpegFrameRecorder recorder;
         if (OUTPUT_VIDEO) {
@@ -307,22 +317,31 @@ public class MainClass {
         Java2DFrameConverter java2dFrameConverter = new Java2DFrameConverter();
         OpenCVFrameConverter.ToOrgOpenCvCoreMat converter = new OpenCVFrameConverter.ToOrgOpenCvCoreMat();
         Frame fr;
-        int count = 0;
+        int vFrNumber = 0, createdVFrNumber = 0;
         // shape == MORPH_RECT || shape == MORPH_CROSS || shape == MORPH_ELLIPSE
         Mat element1 = Imgproc.getStructuringElement(MORPH_ELLIPSE, new Size(2, 2));
-        long time = System.currentTimeMillis(), timestamp;
+        long startTimeMillis = System.currentTimeMillis(), timestamp;
 
         try {
             while ((fr = g.grab()) != null) {
                 timestamp = fr.timestamp;
 
                 if (fr.image != null) {
-                    count++;
-                    if (count <= SKIPPED_FRAMES) continue;
+                    vFrNumber++;
+                    if (vFrNumber <= SKIPPED_FRAMES) continue;
+                    createdVFrNumber++;
 
                     if (OUTPUT_ORIGINAL_FRAMES) {
                         ImageIO.write(java2dFrameConverter.convert(fr), "png",
-                                new File(String.format(PATCH + "input_frames\\frame-%03d.png", count)));
+                                new File(String.format(PATCH + "input_frames\\frame-%03d.png", vFrNumber)));
+                    }
+
+                    if (FLUCTUATIONS_HEIGHT != 0.) {
+                        int shift = vFrNumber % 72;
+                        int frameHeight = (int) (HEIGHT + HEIGHT / 18. * FLUCTUATIONS_HEIGHT * (18. - (shift > 36 ? 72 - shift : shift)));
+                        //System.out.println("frameHeight: " + frameHeight);
+                        int frameWidth = (int) ((double) frameHeight / fr.imageHeight * fr.imageWidth);
+                        fr = java2dFrameConverter.convert(resize(java2dFrameConverter.convert(fr), frameWidth, frameHeight));
                     }
 
                     Mat grabbedImage = converter.convert(fr);
@@ -371,10 +390,10 @@ public class MainClass {
                             BufferedImage bi;
                             if (USE_2_THRESH) {
                                 bi = java2dFrameConverter.getBufferedImage(converter.convert(thresh2));
-                                ImageIO.write(bi, "png", new File(PATCH + "thresh\\thresh2-" + count + ".png"));
+                                ImageIO.write(bi, "png", new File(PATCH + "thresh\\thresh2-" + vFrNumber + ".png"));
                             }
                             bi = java2dFrameConverter.getBufferedImage(converter.convert(thresh));
-                            ImageIO.write(bi, "png", new File(PATCH + "thresh\\thresh1-" + count + ".png"));
+                            ImageIO.write(bi, "png", new File(PATCH + "thresh\\thresh1-" + vFrNumber + ".png"));
                         }
                     } else thresh = gray;
 
@@ -383,26 +402,34 @@ public class MainClass {
                     Core.add(new Mat(thresh.rows(), thresh.cols(), thresh.type(), new Scalar(MIN_WEIGHT + DIFF)), thresh, dst);
                     thresh = dst;
 
-                    Pair<Mat, Mat> result = createUtf8Mat(thresh, gray, thresh2, count);
+                    Pair<Mat, Mat> result = createUtf8Mat(thresh, gray, thresh2, vFrNumber);
+
                     Frame convFr = converter.convert(result.a);
+                    if (HEIGHT != convFr.imageHeight) {
+                        int frameWidth = (int) ((double) HEIGHT / convFr.imageHeight * convFr.imageWidth);
+                        convFr = java2dFrameConverter.convert(resize(java2dFrameConverter.convert(convFr), frameWidth, HEIGHT));
+                    }
 
                     BufferedImage bi = java2dFrameConverter.getBufferedImage(convFr);
                     if (OUTPUT_FRAMES) {
                         String name = g.getFormat().matches(".*webm.*|.*mp4.*|.*m4v.*|.*mkv.*") ? "frame" : INPUT_FILE_NAME;
-                        ImageIO.write(bi, "png", new File(String.format(PATCH + "frames\\%s-%03d.png", name, count)));
+                        ImageIO.write(bi, "png", new File(String.format(PATCH + "frames\\%s-%03d.png", name, vFrNumber)));
                         if (SPLIT_FILL) {
                             Frame convFill = converter.convert(result.b);
                             bi = java2dFrameConverter.getBufferedImage(convFill);
-                            ImageIO.write(bi, "png", new File(String.format(PATCH + "fill\\%s-%03d.png", name, count)));
+                            ImageIO.write(bi, "png", new File(String.format(PATCH + "fill\\%s-%03d.png", name, vFrNumber)));
                         }
                     }
 
-                    System.out.printf("frame-%03d%n", count);
-                    if (count == (SKIPPED_FRAMES + 500)) ProcessPixelLine.getSymbols().removeNull();
-                    if (count % 500 == 0) ProcessPixelLine.getSymbols().outputStatsToFile();
-                    if (CREATE_FRAMES > 0 && CREATE_FRAMES <= count) break;
+                    System.out.printf("frame-%03d%n", vFrNumber);
+                    if (createdVFrNumber == 500) ProcessPixelLine.getSymbols().removeNull();
+                    if (createdVFrNumber % 500 == 0) ProcessPixelLine.getSymbols().outputStatsToFile();
 
                     fr = convFr;
+
+                    long currentTimeMillis = System.currentTimeMillis();
+                    long leftTimeMillis = (currentTimeMillis - startTimeMillis) / createdVFrNumber * (totalCreateVFrames - createdVFrNumber);
+                    System.out.println(TimeUnit.MILLISECONDS.toMinutes(leftTimeMillis) + " minutes left");
                 }
 
                 if (OUTPUT_VIDEO) {
@@ -410,9 +437,11 @@ public class MainClass {
                     recorder.setTimestamp(g.getTimestamp());
                     recorder.record(fr);
                 }
+
+                if (CREATE_FRAMES > 0 && CREATE_FRAMES <= vFrNumber) break;
             }
 
-            System.out.println("Runtime: " + TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - time) + "s");
+            System.out.println("Runtime: " + TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - startTimeMillis) + "s");
             if (OUTPUT_VIDEO) {
                 recorder.stop();
                 recorder.release();
