@@ -5,7 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static com.uvideo.MainClass.FILL_ALIGNMENT;
-import static com.uvideo.MainClass.FILL_SPACING;
+import static com.uvideo.ProcessPixelLine.FILL_SPACING;
 
 public class FillRingList implements Cloneable {
 

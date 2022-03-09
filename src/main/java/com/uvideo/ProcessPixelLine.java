@@ -7,7 +7,9 @@ import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -20,7 +22,24 @@ import static org.opencv.imgproc.Imgproc.warpAffine;
 
 public class ProcessPixelLine implements ProcessLine<Mat> {
 
-    /**A fill is a character that is added to an image if there is no character representing
+    /**
+     * MIN_WEIGHT - minimum character pixel weight
+     * DIFF - the difference between the weight of the maximum black pixels of the
+     * symbol and the threshold when calculating the match amount. note that
+     * when calculating the difference in the ProcessPixelLine::compare class,
+     * the DIFF difference is reset 'if (n <= DIFF) continue; sum += n;', since the
+     * maximum black pixels of the symbol should not have any weight when calculating
+     * the sum, if they match the black pixels of the threshold. also note that any
+     * character pixels above the '255-DIFF' will be reset and will not have any
+     * weight anyway.
+     * SYMBOL_SPACING - additional distance between characters
+     * SYMBOL_HORIZONTAL_SHIFT - the offset distance of the symbol when calculating
+     * the final coefficient, if the symbol does not have the _dont_move_x and
+     * dont_move flags. the result of the calculation will be the smallest sum of
+     * the difference obtained from the 3 shifts-SHS +0 and +SHS, respectively.
+     * FILL_SPACING - additional distance between fill characters.
+     *
+     * A fill is a character that is added to an image if there is no character representing
      * the outline at that position and the gray image is below the FILL_DEPTH.
      * The fill characters are placed in the fillNumbersStatic array in the order sorted by
      * file name. They are of two types: FILLING and FILLING_SOLO. FILLING_SOLO are single
@@ -36,6 +55,12 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
      * fillNumbers.add(n.clone().setIterWithN1N2V2(numberF, numberL)) - a function that changes
      * the order in one layer over time.
      * */
+
+    public  static final int DIFF = 115;
+    public  static final int MIN_WEIGHT = 0;
+    public  static final int SYMBOL_SPACING = 0;
+    public  static final int SYMBOL_HORIZONTAL_SHIFT = 1;
+    public  static final int FILL_SPACING = 0;
 
     private static CharacterSet<Mat> symbols;
     private static List<FillRingList> fillSNumbersStatic;

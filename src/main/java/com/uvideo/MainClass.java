@@ -31,6 +31,8 @@ import org.opencv.video.Video;
 
 import javax.imageio.ImageIO;
 
+import static com.uvideo.ProcessPixelLine.DIFF;
+import static com.uvideo.ProcessPixelLine.MIN_WEIGHT;
 import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_VP9;
 import static org.opencv.core.CvType.*;
 import static org.opencv.imgproc.Imgproc.*;
@@ -44,24 +46,9 @@ public class MainClass {
      * FLUCTUATIONS_HEIGHT - percentage of deviation from the height when building
      * a symbolic image. the text output will be different, but the output images
      * will be fixed size
-     * MIN_WEIGHT - minimum character pixel weight
-     * DIFF - the difference between the weight of the maximum black pixels of the
-     * symbol and the threshold when calculating the match amount. note that
-     * when calculating the difference in the ProcessPixelLine::compare class,
-     * the DIFF difference is reset 'if (n <= DIFF) continue; sum += n;', since the
-     * maximum black pixels of the symbol should not have any weight when calculating
-     * the sum, if they match the black pixels of the threshold. also note that any
-     * character pixels above the '255-DIFF' will be reset and will not have any
-     * weight anyway.
      * BACK_SUB - removing a still background, most likely you don't want to use it.
      * BAW - black and white
      * LINE_SPACING - line spacing when capturing and outputting
-     * SYMBOL_SPACING - additional distance between characters
-     * SYMBOL_HORIZONTAL_SHIFT - the offset distance of the symbol when calculating
-     * the final coefficient, if the symbol does not have the _dont_move_x and
-     * dont_move flags. the result of the calculation will be the smallest sum of
-     * the difference obtained from the 3 shifts-SHS +0 and +SHS, respectively.
-     * FILL_SPACING - additional distance between fill characters.
      * FILL_DEPTH - lower limit for filling the image if the symbol is not
      * represented as a contour.
      * FILL_ALIGNMENT - aligns the fill relative to the absolute position, regardless
@@ -81,19 +68,14 @@ public class MainClass {
      */
 
     private static final int     HEIGHT = 480;         // 0 as source
-    private static final double  FLUCTUATIONS_HEIGHT = 0;
+    private static final double  FLUCTUATIONS_HEIGHT = 0.;
     private static final int     FRAMERATE = 0;        // 0 as source
     private static final int     CREATE_FRAMES = 0;    // 0 all
     private static final int     SKIPPED_FRAMES = 0;
-    public  static final int     MIN_WEIGHT = 0;
-    public  static final int     DIFF = 115;
     private static final boolean BACK_SUB = false;
     public  static final boolean BAW = true;
     public  static final int     LINE_SPACING = 0;
     public  static       int     SYMBOL_HEIGHT = 14;
-    public  static final int     SYMBOL_SPACING = 0;
-    public  static final int     SYMBOL_HORIZONTAL_SHIFT = 1;
-    public  static final int     FILL_SPACING = 0;
     public  static final double  FILL_DEPTH = 100.;
     public  static final boolean FILL_ALIGNMENT = false;
     public  static final boolean SPLIT_FILL = false;
