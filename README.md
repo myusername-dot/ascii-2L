@@ -1,4 +1,5 @@
 Create images and videos as full-fledged ASCII and UTF-8 art
+
 ---
 ![preview](https://github.com/AndreiIljuhin/ascii-2L/blob/master/preview0.gif)
 
