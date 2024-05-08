@@ -64,7 +64,7 @@ public class MainClass {
      * a sequential enumeration of all characters. changing the order of characters by
      * renaming results in incorrect operation.
      * INPUT_FILE_NAME - name of the file in the input&output directory. can be passed
-     * as an argument to MainClass.class, with any full path.
+     * as an argument to MainClass, with any full path.
      */
 
     private static final int     HEIGHT = 480;         // 0 as source
@@ -75,28 +75,28 @@ public class MainClass {
     private static final boolean BACK_SUB = false;
     public  static final boolean BAW = true;
     public  static final int     LINE_SPACING = 0;
-    public  static       int     SYMBOL_HEIGHT = 14;
     public  static final double  FILL_DEPTH = 100.;
-    public  static final boolean FILL_ALIGNMENT = false;
+    public  static final boolean FILL_ALIGNMENT = true;
     public  static final boolean SPLIT_FILL = false;
     public  static final boolean SPIN = true;
     private static final boolean USE_THRESH = true;
     private static final Pair<Integer, Integer> THRESH_COEFFICIENTS;
     private static final boolean USE_2_THRESH = false;
     public  static final String  PATCH;
-    public  static final String  SYMBOLS_FOLDER = "MS_Gothic.ttf_14_00";
-    private static       String  INPUT_FILE_NAME = "sample.webm";
+    public  static final String  SYMBOLS_FOLDER = "MS_Gothic.ttf_16_00";
+    private static       String  INPUT_FILE_NAME = "sample.webm"; // can be a command line parameter
     public  static final boolean OUTPUT_FRAMES = true;
     private static final boolean OUTPUT_VIDEO = true;
     private static final boolean OUTPUT_THRESH = true;
     private static final boolean OUTPUT_TEXT = true;
     private static final boolean OUTPUT_ORIGINAL_FRAMES = false;
+    public  static       int     SYMBOL_HEIGHT; // automatic
     private static final List<File> symbols;
     private static final List<Character> chars;
 
     static {
         // the first value cannot be even
-        THRESH_COEFFICIENTS = new Pair(3, 3); // 5, 13
+        THRESH_COEFFICIENTS = new Pair<>(3, 3); // 5, 13
         System.out.println("availableProcessors " + Runtime.getRuntime().availableProcessors());
         PATCH = new File("").getAbsolutePath() + "\\data_set\\";
         File folder = new File(PATCH);
@@ -146,14 +146,14 @@ public class MainClass {
         try (Scanner sc = new Scanner(new File(PATCH + SYMBOLS_FOLDER + "\\chars.txt"))) {
             while (sc.hasNext()) {
                 String str = sc.nextLine();
-                if (str.length() != 0) chars.add(str.charAt(str.length() - 1));
+                if (!str.isEmpty()) chars.add(str.charAt(str.length() - 1));
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
 
         try {
-            if (chars.size() == 0) Logger.getGlobal().log(Level.INFO, "chars.size() == 0");
+            if (chars.isEmpty()) Logger.getGlobal().log(Level.INFO, "chars.size() == 0");
             else if (symbols.size() != chars.size())
                 throw new IllegalArgumentException("symbols.size() = " + symbols.size()
                         + " != chars.size() = " + chars.size());
@@ -172,7 +172,7 @@ public class MainClass {
     }
 
     private static void writeLinesToFile(String[] lines, String filename) {
-        if (chars.size() != 0) {
+        if (!chars.isEmpty()) {
             File file = new File(PATCH + "text\\" + filename);
             try (PrintWriter writer = new PrintWriter(file, StandardCharsets.UTF_8)) {
                 for (var line : lines)
@@ -186,7 +186,7 @@ public class MainClass {
     private static Pair<Mat, Mat> createUtf8Mat(Mat threshImg, Mat grayImg, Mat thresh2Img, int fNumber) {
         final int numberOfRows = grayImg.rows() / (SYMBOL_HEIGHT + LINE_SPACING);
         CountDownLatch cdl = new CountDownLatch(numberOfRows);
-        int nOfThreads = Runtime.getRuntime().availableProcessors();
+        int nOfThreads = Runtime.getRuntime().availableProcessors() - 1;
         ExecutorService executor = Executors.newFixedThreadPool(nOfThreads);
         ArrayList<ProcessLine<Mat>> lines = new ArrayList<>(numberOfRows);
 
@@ -223,7 +223,7 @@ public class MainClass {
                     submat(new Rect(0, i * (SYMBOL_HEIGHT + LINE_SPACING) + SYMBOL_HEIGHT, threshImg.cols(), LINE_SPACING / 2)));
             Mat fillLine = lines.get(i).getFill();
             fillLine.copyTo(fill.submat(new Rect(0, i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT)));
-            if (chars.size() != 0) textFin[i] = lines.get(i).getTextResult();
+            if (!chars.isEmpty()) textFin[i] = lines.get(i).getTextResult();
         }
 
         if (OUTPUT_TEXT)
@@ -413,6 +413,8 @@ public class MainClass {
                     long leftTimeMillis = (currentTimeMillis - startTimeMillis) / createdVFrNumber * (totalCreateVFrames - createdVFrNumber);
                     System.out.println(TimeUnit.MILLISECONDS.toMinutes(leftTimeMillis) + " minutes left");
                 }
+
+               // if (vFrNumber <= SKIPPED_FRAMES) continue;
 
                 if (OUTPUT_VIDEO) {
                     fr.timestamp = timestamp;
