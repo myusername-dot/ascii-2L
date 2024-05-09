@@ -111,7 +111,7 @@ public class CharacterSet<T> {
                     //ScCr = 1
                     //cCr = (sum / s.rows() / Math.pow(s.cols(), 0.5) / 255. + (double) s.cols() / halfRows * 0.5) * 0.7 + 0.5; // !!++
                     //cCr = (Math.pow(0.5 + sum / s.rows() / Math.pow(s.cols(), 0.5) / 255., 2) + (double) s.cols() / halfRows * 0.6) * 0.7 + 0.5;
-                    cCr = 0.5 + sum / s.rows() / Math.pow(s.cols(), 0.75) / 125.;
+                    cCr = 0.4 + sum / (s.rows() * Math.pow(s.cols(), 0.75) * 127.) + Math.pow(sum, 2) / (Math.pow(s.rows(), 7) * 2.213);
                     //cCr = (Math.pow(sum / s.rows(), 1.35) / 10000. + /*sum / s.rows() / Math.pow(s.cols(), 0.75) / 125. +*/ (double) s.cols() / halfRows * 0.5) * 0.7 + 0.5; //+
                     //cCr = (Math.pow(sum / s.rows(), 1.75) / 200000. + sum / s.rows() / Math.pow(s.cols(), 0.5) / 255. + (double) s.cols() / halfRows * 0.6) * 0.7 + 0.5; //+?
                     //cCr = Math.pow(sum / s.rows() / s.cols() / 70, 2) + (double) s.cols() / halfRows; // ++
@@ -120,7 +120,8 @@ public class CharacterSet<T> {
                     //cCr = Math.pow(sum, 1.4) / s.rows() / s.cols() / 4500. * (1. + (double) s.cols() / halfRows * 0.2) + (double) s.cols() / halfRows * 0.6; // +
                     //ScCr = 1.3
                 }
-                if (SPIN && i % 3 == 0) System.out.println("cCr " + i + "= " + cCr);
+                int index = SPIN ? i / 3 : i;
+                if (SPIN && i % 3 == 0) System.out.println("cCr " + index + (this.chars != null ? " " + this.chars[index] : "") + "= " + cCr);
             } else {
                 Logger.getGlobal().log(Level.WARNING, "!symbol instanceof Mat");
                 break;
@@ -226,7 +227,7 @@ public class CharacterSet<T> {
                 .collect(Collectors.toMap(i->i, i->used[i].get()))
                 .entrySet()
                 .stream()
-                .sorted(Map.Entry.<Integer, Long>comparingByValue())
+                .sorted(Map.Entry.comparingByValue())
                 .limit((int) (currentUSize * percent / 100.))
                 .forEach(u -> valid[u.getKey()] = false);
         int before = currentUSize;
