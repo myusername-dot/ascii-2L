@@ -1,7 +1,5 @@
 package com.uvideo;
 
-import org.bytedeco.javacv.Java2DFrameConverter;
-import org.bytedeco.javacv.OpenCVFrameConverter;
 import org.jetbrains.annotations.NotNull;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
@@ -23,7 +21,6 @@ import static org.opencv.imgproc.Imgproc.warpAffine;
 public class ProcessPixelLine implements ProcessLine<Mat> {
 
     /**
-     * MIN_WEIGHT - minimum character pixel weight
      * DIFF - the difference between the weight of the maximum black pixels of the
      * symbol and the threshold when calculating the match amount. note that
      * when calculating the difference in the ProcessPixelLine::compare class,
@@ -57,20 +54,21 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
      * */
 
     public  static final int DIFF = 115;
-    public  static final int MIN_WEIGHT = 0;
     public  static final int SYMBOL_SPACING = 0;
     public  static final int SYMBOL_HORIZONTAL_SHIFT = 1;
     public  static final int FILL_SPACING = 0;
 
     private static CharacterSet<Mat> symbols;
     private static List<FillRingList> fillSNumbersStatic;
-    //private final int LINE_NUMBER;
-    //private final int FRAME_NUMBER;
+    private final int LINE_NUMBER;
+    private final int FRAME_NUMBER;
     private final List<FillRingList> fillSNumbers;
     private final Mat threshLine, grayLine, thresh2Line;
     private final Mat dstLine, fillLine;
     private final StringBuffer dstTextLine;
     private final CountDownLatch latch;
+
+    private enum Move {CENTER, LEFT, UP, RIGHT, DOWN}
 
     public static int setSymbols(List<File> sImages, List<Character> chars) throws IllegalArgumentException {
         if (sImages == null || sImages.isEmpty())
@@ -87,7 +85,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
                 flags.add(DONT_MOVE_X);
             } else if (name.matches("\\d{3}_filling_\\d{2}\\D*")) {
                 int number = Integer.parseInt(name.substring(0, 3));
-                Logger.getGlobal().log(Level.INFO, "set flag " + (2000 + number) + " " + name);
+                Logger.getGlobal().log(Level.INFO, "set flag " + (FILLING + number) + " " + name);
                 flags.add(FILLING + number);
             } else if (name.contains("_filling")) {
                 Logger.getGlobal().log(Level.INFO, "set flag 2 " + name);
@@ -105,10 +103,10 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
 
         if (SPIN) {
             symbols = new ArrayList<>(tempSymbols.size() * 3);
-            Java2DFrameConverter java2dFrameConverter = new Java2DFrameConverter();
-            OpenCVFrameConverter.ToOrgOpenCvCoreMat converter = new OpenCVFrameConverter.ToOrgOpenCvCoreMat();
+//            Java2DFrameConverter java2dFrameConverter = new Java2DFrameConverter();
+//            OpenCVFrameConverter.ToOrgOpenCvCoreMat converter = new OpenCVFrameConverter.ToOrgOpenCvCoreMat();
 
-            int count = 0;
+//            int count = 0;
             for (Mat symbol : tempSymbols) {
                 Mat white = new Mat(symbol.rows(), symbol.cols(), CV_8UC1, new Scalar(255));
                 Mat invSymbol = new Mat(symbol.rows(), symbol.cols(), CV_8UC1);
@@ -130,7 +128,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
                 symbols.add(symbol);
                 symbols.add(rLeft);
                 symbols.add(rRight);
-                count++;
+//                count++;
             }
         } else symbols = tempSymbols;
 //        for (Mat s : symbols) {
@@ -191,8 +189,8 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         if (/*threshLine.type() != CV_8U || */thresh1Line.rows() != MainClass.SYMBOL_HEIGHT || thresh1Line.cols() < 100)
             throw new IllegalArgumentException("threshLine.rows() != 14 || threshLine.cols() < 100");
 
-        //LINE_NUMBER = numberL;
-        //FRAME_NUMBER = numberF;
+        LINE_NUMBER = numberL;
+        FRAME_NUMBER = numberF;
         this.threshLine = thresh1Line;
         this.grayLine = grayLine;
         this.thresh2Line = thresh2Line;
@@ -204,8 +202,8 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         fillSNumbers = new ArrayList<>(fillSNumbersStatic.size());
         for (var n : fillSNumbersStatic) {
             try {
-                if (swap) fillSNumbers.add(n.clone().setIterWithFLSwap(numberF, numberL));
-                else fillSNumbers.add(n.clone().setIterWithFL(numberF, numberL));
+                if (swap) fillSNumbers.add(n.clone().setIterWithFLSwap(FRAME_NUMBER, LINE_NUMBER));
+                else fillSNumbers.add(n.clone().setIterWithFL(FRAME_NUMBER, LINE_NUMBER));
             } catch (CloneNotSupportedException e) {
                 e.printStackTrace();
             }
@@ -225,15 +223,15 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         this(thresh1Line, grayLine, thresh2Line, latch, -1, -1, false);
     }
 
-    private double compare(int pos, Mat symbol, double cCr, final int flagH) {
+    private double compare(int pos, Mat symbol, double cCr, Move moveH) {
         double diffsSSum = 0, diffsTSum = 0;
         double halfRows = symbol.rows() / 2.;
         for (int i = 0; i < symbol.rows(); i++)
             for (int j = 0; j < symbol.cols(); j++) {
                 double s, t, diff;
-                if (flagH == 0) s = symbol.get(i, j)[0];
-                else if (flagH == 1 && i != 0) s = symbol.get(i - 1, j)[0];
-                else if (flagH == -1 && i != symbol.rows() - 1) s = symbol.get(i + 1, j)[0];
+                if (moveH == Move.CENTER) s = symbol.get(i, j)[0];
+                else if (moveH == Move.UP && i != 0) s = symbol.get(i - 1, j)[0];
+                else if (moveH == Move.DOWN && i != symbol.rows() - 1) s = symbol.get(i + 1, j)[0];
                 else s = 255.;
                 t = threshLine.get(i, pos + j)[0];
                 diff = s - t;
@@ -242,32 +240,33 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
                 else diffsTSum += diff;
             }
         return (diffsSSum / cCr + diffsTSum) / Math.pow(symbol.cols(), 0.75) * halfRows;
+        //return (diffsSSum / cCr + diffsTSum) / ((double) symbol.cols() / symbol.rows() / 2.);
     }
 
-    private double width3Compare(int left, Mat symbol, double cCr, int flag) {
+    private double multi9Compare(int leftPos, Mat symbol, double cCr, int flag) {
         // Center
-        double diff, bestC = compare(left + SYMBOL_HORIZONTAL_SHIFT, symbol, cCr, 0);
+        double diff, bestC = compare(leftPos + SYMBOL_HORIZONTAL_SHIFT, symbol, cCr, Move.CENTER);
         if (flag == DONT_MOVE) return bestC;
-        diff = compare(left + SYMBOL_HORIZONTAL_SHIFT, symbol, cCr, 1);
+        diff = compare(leftPos + SYMBOL_HORIZONTAL_SHIFT, symbol, cCr, Move.UP);
         if (bestC > diff) bestC = diff;
-        diff = compare(left + SYMBOL_HORIZONTAL_SHIFT, symbol, cCr, -1);
+        diff = compare(leftPos + SYMBOL_HORIZONTAL_SHIFT, symbol, cCr, Move.DOWN);
         if (bestC > diff) bestC = diff;
         //if (bestC < 50) return 0;
         if (flag != DONT_MOVE_X) {
             // Left
-            diff = compare(left, symbol, cCr, 0);
+            diff = compare(leftPos, symbol, cCr, Move.CENTER);
             if (bestC > diff) bestC = diff;
-            diff = compare(left, symbol, cCr, 1);
+            diff = compare(leftPos, symbol, cCr, Move.UP);
             if (bestC > diff) bestC = diff;
-            diff = compare(left, symbol, cCr, -1);
+            diff = compare(leftPos, symbol, cCr, Move.DOWN);
             if (bestC > diff) bestC = diff;
             //if (bestC < 50) return 0;
             // Right
-            diff = compare(left + SYMBOL_HORIZONTAL_SHIFT * 2, symbol, cCr, 0);
+            diff = compare(leftPos + SYMBOL_HORIZONTAL_SHIFT * 2, symbol, cCr, Move.CENTER);
             if (bestC > diff) bestC = diff;
-            diff = compare(left + SYMBOL_HORIZONTAL_SHIFT * 2, symbol, cCr, 1);
+            diff = compare(leftPos + SYMBOL_HORIZONTAL_SHIFT * 2, symbol, cCr, Move.UP);
             if (bestC > diff) bestC = diff;
-            diff = compare(left + SYMBOL_HORIZONTAL_SHIFT * 2, symbol, cCr, -1);
+            diff = compare(leftPos + SYMBOL_HORIZONTAL_SHIFT * 2, symbol, cCr, Move.DOWN);
             if (bestC > diff) bestC = diff;
             //if (bestC < 50) return 0;
         }
@@ -288,7 +287,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
             if (width - symbol.cols() <= SYMBOL_HORIZONTAL_SHIFT + 1) continue;
 
             if (i == spacePosNumber) {
-                double diff = compare(pos, symbol, symbols.getCorrection(i), 0);
+                double diff = compare(pos, symbol, symbols.getCorrection(i), Move.CENTER);
                 if (diff < 500) return i;
                 bestC = diff;
                 best = i;
@@ -299,7 +298,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
             int flag = symbols.getFlag(i);
             if (SPIN && i % 3 != 0 && (flag == DONT_SPIN || flag == DONT_MOVE)) continue;
 
-            double diff = width3Compare(pos - SYMBOL_HORIZONTAL_SHIFT, symbol, symbols.getCorrection(i), flag);
+            double diff = multi9Compare(pos - SYMBOL_HORIZONTAL_SHIFT, symbol, symbols.getCorrection(i), flag);
             if (diff == 0) return i;
             if (bestC > diff) {
                 bestC = diff;
