@@ -70,7 +70,7 @@ public class MainClass {
     private static final double  FLUCTUATIONS_HEIGHT = 0.;
     private static final int     FRAMERATE = 0;        // 0 as source
     private static final int     CREATE_FRAMES = 0;    // 0 all
-    private static final int     SKIPPED_FRAMES = 7299;
+    private static final int     SKIPPED_FRAMES = 0;
     private static final boolean BACK_SUB = false;
     public  static final boolean BAW = true;
     public  static final int     LINE_SPACING = 0;
