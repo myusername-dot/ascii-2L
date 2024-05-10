@@ -32,7 +32,6 @@ import org.opencv.video.Video;
 import javax.imageio.ImageIO;
 
 import static com.uvideo.ProcessPixelLine.DIFF;
-import static com.uvideo.ProcessPixelLine.MIN_WEIGHT;
 import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_VP9;
 import static org.opencv.core.CvType.*;
 import static org.opencv.imgproc.Imgproc.*;
@@ -71,7 +70,7 @@ public class MainClass {
     private static final double  FLUCTUATIONS_HEIGHT = 0.;
     private static final int     FRAMERATE = 0;        // 0 as source
     private static final int     CREATE_FRAMES = 0;    // 0 all
-    private static final int     SKIPPED_FRAMES = 0;
+    private static final int     SKIPPED_FRAMES = 7299;
     private static final boolean BACK_SUB = false;
     public  static final boolean BAW = true;
     public  static final int     LINE_SPACING = 0;
@@ -79,8 +78,8 @@ public class MainClass {
     public  static final boolean FILL_ALIGNMENT = true;
     public  static final boolean SPLIT_FILL = false;
     public  static final boolean SPIN = true;
-    private static final boolean USE_CANNY = true;
-    private static final boolean USE_THRESH = false;
+    private static final boolean USE_CANNY = false;
+    private static final boolean USE_THRESH = true;
     private static final Pair<Integer, Integer> THRESH_COEFFICIENTS;
     private static final boolean USE_2_THRESH = false;
     public  static final String  PATCH;
@@ -317,30 +316,55 @@ public class MainClass {
                         }
 
                         Mat grabbedImage = converter.convert(fr);
+                        int rows = grabbedImage.rows(), cols = grabbedImage.cols();
 
                         if (BACK_SUB) backSub.apply(grabbedImage, fgMask, 0.01);
 
-                        Mat gray = new Mat(grabbedImage.rows(), grabbedImage.cols(), COLOR_BGR2GRAY);
+                        Mat gray = new Mat(rows, cols, COLOR_BGR2GRAY);
                         Imgproc.cvtColor(grabbedImage, gray, COLOR_BGR2GRAY);
 
                         Mat thresh, thresh2 = null;
                         if (USE_CANNY) {
-                            thresh = new Mat(grabbedImage.rows(), grabbedImage.cols(), COLOR_BGR2GRAY);
+                            thresh = new Mat(rows, cols, COLOR_BGR2GRAY);
                             Imgproc.Canny(grabbedImage, thresh, 100, 200, 3, false);
-                            Mat tmp = new Mat(grabbedImage.rows(), grabbedImage.cols(), COLOR_BGR2GRAY);
-                            Core.bitwise_not(thresh, tmp);
-                            thresh = tmp;
+                            // increasing the thickness of the lines
+                            /*float[][] maskValues = {{1, 0, 1}, {0, 1, 0}}; // (1,3) - сдвиг по горизонтали, (2,3) - по вертикали. могут быть отрицательными
+                            Mat mask = new Mat(2, 3, CV_32FC1);
+                            for (int i = 0; i < 2; i++)
+                                for (int j = 0; j < 3; j++)
+                                    mask.put(i, j, maskValues[i][j]);
+                            Mat moveRight = new Mat(rows, cols, COLOR_BGR2GRAY);
+                            Imgproc.warpAffine(thresh, moveRight, mask, new Size(cols, rows));
+                            Core.bitwise_or(thresh, moveRight, tmp);*/
+                            Mat tmp = new Mat(rows, cols, COLOR_BGR2GRAY);
+                            Imgproc.GaussianBlur(thresh, tmp, new Size(3, 3), 0);
+                            // invert the color of the image
+                            Core.bitwise_not(tmp, thresh);
+                            //thresh = tmp;
+
                             if (OUTPUT_CANNY) {
                                 BufferedImage bi = java2dFrameConverter.getBufferedImage(converter.convert(thresh));
                                 ImageIO.write(bi, "png", new File(PATCH + "canny\\canny-" + vFrNumber + ".png"));
                             }
                         }
                         else if (USE_THRESH) {
-                            thresh = new Mat(grabbedImage.rows(), grabbedImage.cols(), COLOR_BGR2GRAY);
+                            thresh = new Mat(rows, cols, COLOR_BGR2GRAY);
                             if (!USE_2_THRESH) {
                                 Imgproc.adaptiveThreshold(gray, thresh, 255,
                                         Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
                                         Imgproc.THRESH_BINARY, THRESH_COEFFICIENTS.a, THRESH_COEFFICIENTS.b);
+                                /*for (int i = 1; i < cols - 1; i++)
+                                    for (int j = 1; j < rows - 1; j++) {
+                                        double c = thresh.get(j, i)[0];
+                                        if (c == 255.) continue;
+                                        double l = thresh.get(j, i - 1)[0];
+                                        double r = thresh.get(j, i + 1)[0];
+                                        double u = thresh.get(j - 1, i)[0];
+                                        double d = thresh.get(j + 1, i)[0];
+                                        if (l + r + u + d >= 255. * 3) {
+                                            thresh.put(j, i, 255., 255., 255.);
+                                        }
+                                    }*/
                             } else {
                                 // https://docs.opencv.org/3.4/d7/d4d/tutorial_py_thresholding.html
                                 Mat temp = new Mat(gray.rows(), gray.cols(), COLOR_BGR2GRAY);
@@ -348,7 +372,7 @@ public class MainClass {
                                 Imgproc.threshold(temp, thresh, 0,
                                         255,
                                         Imgproc.THRESH_BINARY + THRESH_OTSU);
-                                thresh2 = new Mat(grabbedImage.rows(), grabbedImage.cols(), COLOR_BGR2GRAY);
+                                thresh2 = new Mat(rows, cols, COLOR_BGR2GRAY);
                                 Imgproc.adaptiveThreshold(thresh, thresh2, 255,
                                         Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
                                         Imgproc.THRESH_BINARY, 3, 2);
@@ -363,6 +387,10 @@ public class MainClass {
                                 Core.bitwise_or(invMask, thresh, useMask);
                                 thresh = useMask;
                             }
+                            // "lighten" the weight of the matrix
+                            Mat dst = new Mat(rows, cols, thresh.type());
+                            Core.add(new Mat(rows, cols, thresh.type(), new Scalar(DIFF)), thresh, dst);
+                            thresh = dst;
                             if (OUTPUT_THRESH) {
                                 BufferedImage bi;
                                 if (USE_2_THRESH) {
@@ -375,15 +403,11 @@ public class MainClass {
                         }
                         else thresh = gray;
 
-                        // "lighten" the weight of the matrix
-                        Mat dst = new Mat(thresh.rows(), thresh.cols(), thresh.type());
-                        Core.add(new Mat(thresh.rows(), thresh.cols(), thresh.type(), new Scalar(MIN_WEIGHT + DIFF)), thresh, dst);
-                        thresh = dst;
-
                         Pair<Mat, Mat> result = createUtf8Mat(thresh, gray, thresh2, vFrNumber);
 
                         Frame convFr = converter.convert(result.a);
                         if (HEIGHT != convFr.imageHeight) {
+                            Logger.getGlobal().log(Level.INFO, "wtf");
                             int frameWidth = (int) ((double) HEIGHT / convFr.imageHeight * convFr.imageWidth);
                             convFr = java2dFrameConverter.convert(resize(java2dFrameConverter.convert(convFr), frameWidth, HEIGHT));
                         }
