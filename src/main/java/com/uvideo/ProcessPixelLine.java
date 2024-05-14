@@ -239,7 +239,11 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
                 if (diff < 0) diffsSSum -= diff;
                 else diffsTSum += diff;
             }
-        return (diffsSSum / cCr + diffsTSum) / Math.pow(symbol.cols(), 0.75) * halfRows;
+
+        double colsC = Math.pow(symbol.cols(), 0.75) / halfRows;
+        //-Math.cos(colsC + 0.1) + 1.45
+        if (colsC < 1.) colsC = -Math.cos(colsC + 0.2) + 1.36;
+        return (diffsSSum / cCr + diffsTSum) / colsC;
         //return (diffsSSum / cCr + diffsTSum) / ((double) symbol.cols() / symbol.rows() / 2.);
     }
 
