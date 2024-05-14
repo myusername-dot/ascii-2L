@@ -66,7 +66,7 @@ public class MainClass {
      * as an argument to MainClass, with any full path.
      */
 
-    private static final int     HEIGHT = 480;         // 0 as source
+    private static final int     HEIGHT = 480;
     private static final double  FLUCTUATIONS_HEIGHT = 0.;
     private static final int     FRAMERATE = 0;        // 0 as source
     private static final int     CREATE_FRAMES = 0;    // 0 all
@@ -80,8 +80,8 @@ public class MainClass {
     public  static final boolean SPIN = true;
     private static final boolean USE_CANNY = false;
     private static final boolean USE_THRESH = true;
-    private static final Pair<Integer, Integer> THRESH_COEFFICIENTS;
     private static final boolean USE_2_THRESH = false;
+    private static final boolean BETTER_THRESH = false; // work if USE_2_THRESH = false
     public  static final String  PATCH;
     public  static final String  SYMBOLS_FOLDER = "MS_Gothic.ttf_16_00";
     private static       String  INPUT_FILE_NAME = "sample.webm"; // can be a command line parameter
@@ -94,6 +94,7 @@ public class MainClass {
     public  static       int     SYMBOL_HEIGHT; // automatic
     private static final List<File> symbols;
     private static final List<Character> chars;
+    private static final Pair<Integer, Integer> THRESH_COEFFICIENTS;
 
     static {
         // the first value cannot be even
@@ -239,6 +240,18 @@ public class MainClass {
         return Thumbnails.of(img).forceSize(newW, newH).asBufferedImage();
     }
 
+    private static void blurFineLines(Mat src, Mat dst) {
+        Imgproc.GaussianBlur(src, dst, new Size(3, 3), 0);
+        /*for (int i = 0; i < dst.rows(); i++) {
+            for (int j = 0; j < dst.cols(); j++) {
+                double p = dst.get(i, j)[0];
+                if (p < 255.) {
+                    dst.put(i, j, p - 20.);
+                }
+            }
+        }*/
+    }
+
     public static void main(String[] args) {
         String fileName;
         if (args.length > 0) {
@@ -337,10 +350,11 @@ public class MainClass {
                             Imgproc.warpAffine(thresh, moveRight, mask, new Size(cols, rows));
                             Core.bitwise_or(thresh, moveRight, tmp);*/
                             Mat tmp = new Mat(rows, cols, COLOR_BGR2GRAY);
-                            Imgproc.GaussianBlur(thresh, tmp, new Size(3, 3), 0);
                             // invert the color of the image
-                            Core.bitwise_not(tmp, thresh);
+                            Core.bitwise_not(thresh, tmp);
                             //thresh = tmp;
+                            // it seems to be better this way?
+                            blurFineLines(tmp, thresh);
 
                             if (OUTPUT_CANNY) {
                                 BufferedImage bi = java2dFrameConverter.getBufferedImage(converter.convert(thresh));
@@ -353,21 +367,28 @@ public class MainClass {
                                 Imgproc.adaptiveThreshold(gray, thresh, 255,
                                         Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
                                         Imgproc.THRESH_BINARY, THRESH_COEFFICIENTS.a, THRESH_COEFFICIENTS.b);
-                                /*for (int i = 1; i < cols - 1; i++)
-                                    for (int j = 1; j < rows - 1; j++) {
-                                        double c = thresh.get(j, i)[0];
-                                        if (c == 255.) continue;
-                                        double l = thresh.get(j, i - 1)[0];
-                                        double r = thresh.get(j, i + 1)[0];
-                                        double u = thresh.get(j - 1, i)[0];
-                                        double d = thresh.get(j + 1, i)[0];
-                                        if (l + r + u + d >= 255. * 3) {
-                                            thresh.put(j, i, 255., 255., 255.);
+                                // remove most of the single and double pixels
+                                if (BETTER_THRESH) {
+                                    for (int i = 1; i < cols - 1; i++)
+                                        for (int j = 1; j < rows - 1; j++) {
+                                            double c = thresh.get(j, i)[0];
+                                            if (c == 255.) continue;
+                                            double l = thresh.get(j, i - 1)[0];
+                                            double r = thresh.get(j, i + 1)[0];
+                                            double u = thresh.get(j - 1, i)[0];
+                                            double d = thresh.get(j + 1, i)[0];
+                                            if (l + r + u + d >= 255. * 3) {
+                                                thresh.put(j, i, 255., 255., 255.);
+                                            }
                                         }
-                                    }*/
+                                }
+                                // "lighten" the weight of the maximum black pixels
+                                Mat dst = new Mat(rows, cols, thresh.type());
+                                Core.add(new Mat(rows, cols, thresh.type(), new Scalar(DIFF)), thresh, dst);
+                                thresh = dst;
                             } else {
                                 // https://docs.opencv.org/3.4/d7/d4d/tutorial_py_thresholding.html
-                                Mat temp = new Mat(gray.rows(), gray.cols(), COLOR_BGR2GRAY);
+                                Mat temp = new Mat(rows, cols, COLOR_BGR2GRAY);
                                 Imgproc.GaussianBlur(gray, temp, new Size(5, 5), 0);
                                 Imgproc.threshold(temp, thresh, 0,
                                         255,
@@ -376,9 +397,12 @@ public class MainClass {
                                 Imgproc.adaptiveThreshold(thresh, thresh2, 255,
                                         Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
                                         Imgproc.THRESH_BINARY, 3, 2);
-                                temp = thresh;
+                                Mat temp2 = thresh;
                                 thresh = thresh2;
-                                thresh2 = temp;
+                                thresh2 = temp2;
+                                // it seems to be better this way
+                                blurFineLines(thresh, temp);
+                                thresh = temp;
                             }
                             if (BACK_SUB) {
                                 Mat invMask = new Mat();
@@ -387,10 +411,6 @@ public class MainClass {
                                 Core.bitwise_or(invMask, thresh, useMask);
                                 thresh = useMask;
                             }
-                            // "lighten" the weight of the matrix
-                            Mat dst = new Mat(rows, cols, thresh.type());
-                            Core.add(new Mat(rows, cols, thresh.type(), new Scalar(DIFF)), thresh, dst);
-                            thresh = dst;
                             if (OUTPUT_THRESH) {
                                 BufferedImage bi;
                                 if (USE_2_THRESH) {
