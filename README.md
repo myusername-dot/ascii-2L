@@ -1,4 +1,4 @@
-Create images and videos as ASCII or UTF-8 art  ε(´｡•᎑•`)っ 💕.
+## Create images and videos as ASCII or UTF-8 art  (づ๑•ᴗ•๑)づ♡.
 Algorithm without using neural networks.
 
 
