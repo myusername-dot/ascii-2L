@@ -1,5 +1,5 @@
 ## Create images and videos as ASCII or UTF-8 art  (づ๑•ᴗ•๑)づ.
-Algorithm without using neural networks.
+
 
 ![preview](https://github.com/AndreiIljuhin/ascii-2L/blob/master/preview0.gif)
 
