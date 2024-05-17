@@ -92,11 +92,11 @@ public class NewSet {
         // adding basic symbols and flags for them
         for (int cp : spaceAnd_default.codePoints().toArray())
             train.add(new Pair<>("", List.of(cp)));
-        for (int cp : _dontMoveX.toCharArray())
+        for (int cp : _dontMoveX.codePoints().toArray())
             train.add(new Pair<>("_dont_move_x", List.of(cp)));
-        for (int cp : _dontSpin.toCharArray())
+        for (int cp : _dontSpin.codePoints().toArray())
             train.add(new Pair<>("_dont_spin", List.of(cp)));
-        for (int cp : _dontMove.toCharArray())
+        for (int cp : _dontMove.codePoints().toArray())
             train.add(new Pair<>("_dont_move", List.of(cp)));
         // adding a gradient
         for (String f : _filling)
