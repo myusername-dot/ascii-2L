@@ -25,7 +25,7 @@ public class CharacterSet<T> {
      *
      * symbols - (size) the list of all characters, with the SPIN option, includes all rotated characters,
      *  even those with the DONT_SPIN and DONT_MOVE flags in order: normal character, rotated left,
-     *  rotated right; next character.. the content does not change in any way.
+     *  rotated right; next character. the content does not change in any way.
      * size - number of characters.
      * uniqueSize - number of unique, non-rotated characters.
      * used - (uniqueSize) the number of times the symbol was applied. changes during parallel processing.
@@ -33,9 +33,6 @@ public class CharacterSet<T> {
      *  single-threaded mode.
      * currentUSize - the number of valid characters (not marked with a FALSE flag or rejected during
      *  the call of the corresponding functions) without filling characters.
-     * COEFFICIENT - compensates for the discrepancy between the larger number of character pixels
-     *  with the larger width and the pixels of the threshold line in the compared position. used in
-     *  ProcessPixelLine::compare: sum / (Math.pow(symbol.cols(), symbols.getCOEFFICIENT()) * (1 + (0. + cCr) * .15)) * 10;
      * correction(cCr) - (size) compensates for the mismatch of a larger number of pixels in heavy characters.
      * chars - (size) list of characters from the file chars.txt, which may be missing(to support older
      *  character sets). does not change after loading.
@@ -47,10 +44,10 @@ public class CharacterSet<T> {
     private int currentUSize;
     private final AtomicLong[] used;
     private final boolean[] valid;
+    private final double[] coefficient;
     private final double[] correction;
     private final int[] flags;
     private final char[] chars;
-    public final double COEFFICIENT; // = 0.75
     // ~~~~~ Flags ~~~~~
     public static final int DEFAULT = 0;
     public static final int FALSE = -1;
@@ -60,11 +57,10 @@ public class CharacterSet<T> {
     public static final int DONT_MOVE = 3;
     public static final int DONT_SPIN = 4;
 
-    public CharacterSet(Class<T> clazz, List<T> symbols, List<Integer> flags, List<Character> chars,
-                        double COEFFICIENT) {
+    public CharacterSet(Class<T> clazz, List<T> symbols, List<Integer> flags, List<Character> chars) {
         if (symbols == null) throw new NullPointerException("symbols == null");
         size = symbols.size();
-        if (chars != null && chars.size() != 0) {
+        if (chars != null && !chars.isEmpty()) {
             if (chars.size() != flags.size())
                 throw new IllegalArgumentException("chars != null && chars.size() != 0 && chars.size() != flags.size()");
             if (SPIN && size / 3 != chars.size() || !SPIN && size != chars.size())
@@ -79,10 +75,11 @@ public class CharacterSet<T> {
 
         this.symbols = (T[]) Array.newInstance(clazz, size);
         this.flags = new int[uniqueSize];
-        if (chars != null && chars.size() != 0) this.chars = new char[uniqueSize];
+        if (chars != null && !chars.isEmpty()) this.chars = new char[uniqueSize];
         else this.chars = null;
         used = new AtomicLong[uniqueSize];
         valid = new boolean[uniqueSize];
+        coefficient = new double[size];
         correction = new double[size];
 
         for (int i = 0; i < uniqueSize; i++) {
@@ -96,38 +93,34 @@ public class CharacterSet<T> {
         for (int i = 0; i < size; i++) {
             T symbol = symbols.get(i);
             this.symbols[i] = symbol;
-            double cCr = 0;
-            if (symbol instanceof Mat) {
-                Mat s = (Mat) symbol;
-                if (i == 0) cCr = Math.pow(s.cols(), 1.3) * 0.08;
-                else {
+            double colsC;
+            double cCr = 1;
+            if (symbol instanceof Mat s) {
+                //(double) symbol.cols() / symbol.rows() / 2.
+                double halfRows = s.rows() / 2.;
+                colsC = Math.pow(s.cols(), 0.75) / halfRows;
+                //-Math.cos(colsC + 0.1) + 1.45
+                if (colsC < 1.) colsC = -Math.cos(colsC + 0.2) + 1.36;
+                if (i != 0) { // skip space
                     double sum = 0;
                     for (int c = 0; c < s.cols(); c++)
                         for (int r = 0; r < s.rows(); r++)
-                            sum += 255 - s.get(r, c)[0];
-                    // Perhaps you should change the function or add an activation function for more stable
-                    // operation with small and large amounts of money. However, the result with a font size
-                    // of 14-16 pixels is quite normal, except for too bold characters, to which you can
-                    // manually add the _false flag to the file name after creating the font. There is no
-                    // point in using large font sizes, since you can scale the resulting text file.
-                    cCr = Math.pow(sum, 2) / (s.cols() * s.rows() * 2500000.) * Math.pow(s.cols(), 1.);
-                    //cCr = Math.pow(sum / 10., 2) / (Math.pow(s.cols(), .4) * s.rows() * 30000.);
+                            sum += 255. - s.get(r, c)[0];
+                    //cCr = 0.4 + sum / (s.rows() * Math.pow(s.cols(), 0.75) * 127.) + Math.pow(sum, 2) / (Math.pow(s.rows(), 7) * 2.213);
+                    cCr = 1. + Math.pow(sum, 2) / (Math.pow(s.rows(), 7) * 2.213);
                 }
-                if (SPIN && i % 3 == 0) System.out.println("cCr " + i + "= " + cCr);
+                int index = SPIN ? i / 3 : i;
+                if (SPIN && i % 3 == 0) System.out.println("cCr " + index + (this.chars != null ? " " + this.chars[index] : "") + "= " + cCr);
             } else {
                 Logger.getGlobal().log(Level.WARNING, "!symbol instanceof Mat");
                 break;
             }
+            coefficient[i] = colsC;
             correction[i] = cCr;
         }
 
-        this.COEFFICIENT = COEFFICIENT;
         currentUSize = (int) (Booleans.asList(valid).stream().filter(Boolean::booleanValue).count());
         Logger.getGlobal().log(Level.INFO, "number of valid characters without fill: " + currentUSize);
-    }
-
-    public double getCOEFFICIENT() {
-        return COEFFICIENT;
     }
 
     public T get(int index) {
@@ -137,6 +130,10 @@ public class CharacterSet<T> {
     public T getUnique(int index) {
         if (SPIN) index /= 3;
         return symbols[index];
+    }
+
+    public double getCoefficient(int index) {
+        return coefficient[index];
     }
 
     public double getCorrection(int index) {
@@ -224,7 +221,7 @@ public class CharacterSet<T> {
                 .collect(Collectors.toMap(i->i, i->used[i].get()))
                 .entrySet()
                 .stream()
-                .sorted(Map.Entry.<Integer, Long>comparingByValue())
+                .sorted(Map.Entry.comparingByValue())
                 .limit((int) (currentUSize * percent / 100.))
                 .forEach(u -> valid[u.getKey()] = false);
         int before = currentUSize;
@@ -234,18 +231,18 @@ public class CharacterSet<T> {
 
     public void removeNull() {
         for (int i = 1; i < uniqueSize; i++)
-            if (used[i].get() == 0L) valid[i] = false;
+            if (used[i].get() <= 10L) valid[i] = false;
         int before = currentUSize;
         currentUSize = (int) (Booleans.asList(valid).stream().filter(Boolean::booleanValue).count());
         Logger.getGlobal().log(Level.INFO, "Ignore " + (before - currentUSize) + " symbols");
     }
 
     public void outputStatsToFile() {
-        File file = new File(String.format("%s%s\\stats_%s_%s_%f.txt"
+        File file = new File(String.format("%s%s\\stats_%s_%s.txt"
                 , MainClass.PATCH, SYMBOLS_FOLDER,
-                SYMBOLS_FOLDER, MainClass.getInputFileName(), COEFFICIENT));
+                SYMBOLS_FOLDER, MainClass.getInputFileName()));
         try (PrintWriter writer = new PrintWriter(file, StandardCharsets.UTF_8)) {
-            writer.println(this.toString());
+            writer.println(this);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -263,14 +260,14 @@ public class CharacterSet<T> {
         if (SPIN)
             for (int i = 0; i < size / 3; i++) {
                 if (chars != null) c = chars[i];
-                fmt.format("char=%s number=%d used=%d valid=%b cCr=%f flag=%d\r\n",
-                        c, i + 1, used[i].get(), valid[i], correction[i * 3], flags[i]);
+                fmt.format("char=%s number=%d used=%d valid=%b c=%f cCr=%f flag=%d\r\n",
+                        c, i + 1, used[i].get(), valid[i], coefficient[i * 3], correction[i * 3], flags[i]);
             }
         else
             for (int i = 0; i < size; i++) {
                 if (chars != null) c = chars[i];
-                fmt.format("char=%s number=%d used=%d valid=%b cCr=%f flag=%d\r\n",
-                        c, i + 1, used[i].get(), valid[i], correction[i], flags[i]);
+                fmt.format("char=%s number=%d used=%d valid=%b c=%f cCr=%f flag=%d\r\n",
+                        c, i + 1, used[i].get(), valid[i], coefficient[i], correction[i], flags[i]);
             }
         return buffer.toString();
     }
