@@ -45,7 +45,7 @@ public class NewSet {
      */
 
     private static String fontPatch = "data_set\\fonts\\MS Gothic.ttf";
-    private static final int sizePixels = 26;
+    private static final int sizePixels = 16;
     // the first character must always be a space
     private static final String spaceAnd_default = " /／＼|｜lﾉ＞＜∧";
     private static final String _dontMoveX = "-ｰ一ﾆ二ニ＝ヽﾍ丶ゝ=ノへ";
