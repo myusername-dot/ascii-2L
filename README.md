@@ -11,7 +11,7 @@ To create new characters change the fontPatch in NewSet class. Run and copy the 
 
 ![preview](https://github.com/AndreiIljuhin/ascii-2L/blob/master/preview2.png)
 
-Compile the video yourself using ffmpeg for better quality
+Compile the video yourself using ffmpeg for better quality:
 
 ffmpeg -y -framerate 23.98 -i frame-%03d.png -c:v libvpx-vp9 -b 3000k -minrate 2000k -maxrate 9000k -bufsize 1835k -vf "format=yuv420p" "sample_conv.webm"
 
