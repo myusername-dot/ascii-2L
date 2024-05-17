@@ -1,17 +1,19 @@
-Create images and videos as full-fledged ASCII and UTF-8 art
+Create images and videos as ASCII or UTF-8 art  ε(´｡•᎑•`)っ 💕.
+Algorithm without using neural networks.
 
 ---
 ![preview](https://github.com/AndreiIljuhin/ascii-2L/blob/master/preview0.gif)
 
-You can select your characters and load the ttf font.
-
 How to use
 ---
-Clone the repository and open it in the Java IDE, ask ide to load the dependencies in the pom file. Change the INPUT_FILE_NAME string in MainClass.java by file name and move the file to the \data_set\input&output directory, run the main.
+Change the INPUT_FILE_NAME in MainClass by video or image file name and move it to the \data_set\input&output directory. You kan run now.
 
-To create a new character set, change the fontPatch string in the NewSet class to the full path to the ttf file. You can change the _filling variable, where each element represents the fill gradient. Start the class, wait for it to finish, and copy the folder name from the console. Change the SYMBOLS_FOLDER variable in MainClass to the created folder name.
+To create new characters change the fontPatch in NewSet class. Run and copy the folder name from the console into the SYMBOLS_FOLDER variable in MainClass.
 
-If you have Maven installed, you can compile the project and run it by passing the file name to MainClass or the path to the ttf font to NewSet.
 ***
 
 ![preview](https://github.com/AndreiIljuhin/ascii-2L/blob/master/preview2.png)
+
+Compile the video yourself using ffmpeg for better quality:
+ffmpeg -y -framerate 23.98 -i frame-%03d.png -c:v libvpx-vp9 -b 3000k -minrate 2000k -maxrate 9000k -bufsize 1835k -vf "format=yuv420p" "sample_conv.webm"
+ffmpeg -i "sample_conv.webm" -i "sample.webm" -map 0:v -map 1:a -c:v copy -c:a libopus -b:a 128k "sample_conv_with_audio.webm"
