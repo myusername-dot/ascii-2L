@@ -1,5 +1,7 @@
 package com.uvideo;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -58,7 +60,7 @@ public class FillRingList implements Cloneable {
         if (!iter.hasNext())
             throw new IllegalArgumentException("the array contains no elements");
         startPos = 0;
-        startPosPix = arr.get(0).a;
+        startPosPix = arr.getFirst().a;
         size = arr.size();
         pixLength = 0;
         while (iter.hasNext())
@@ -74,7 +76,7 @@ public class FillRingList implements Cloneable {
         if (!iter.hasNext())
             throw new IllegalArgumentException("the array contains no elements");
         startPos = 0;
-        startPosPix = WNLayer.get(0).a;
+        startPosPix = WNLayer.getFirst().a;
         size = 1;
         pixLength = p.a + fillSpacing;
         iter = WNLayer.iterator();
@@ -108,7 +110,7 @@ public class FillRingList implements Cloneable {
 
     private void shiftFirstCharacter(int count) {
         List<Pair<Integer, Integer>> newArr = new ArrayList<>(size);
-        Pair<Integer, Integer> temp = WNLayer.get(0);
+        Pair<Integer, Integer> temp = WNLayer.getFirst();
         for (int i = 0; i < count; i++)
             newArr.add(WNLayer.get(i + 1));
         newArr.add(temp);
@@ -120,16 +122,7 @@ public class FillRingList implements Cloneable {
     public FillRingList setIterWithFL(int frameNumber, int lineNumber){
         // moving lines
         frameNumber /= 22; // changes every n frame
-        int pos = lineNumber % size;
-        pos += (lineNumber % 2 == 0) ? frameNumber % size : -(frameNumber % size);
-        if (pos < 0) pos += size;
-        startPos = pos % size;
-        startPosPix = 0;
-        for (int i = 0; i < startPos; i++) {
-            next();
-            startPosPix += WNLayer.get(i).a + fillSpacing;
-        }
-        return this;
+        return setStartPos(frameNumber, lineNumber);
     }
 
     public FillRingList setIterWithFLSwap(int frameNumber, int lineLumber){
@@ -145,6 +138,11 @@ public class FillRingList implements Cloneable {
         initSelect();
         // after a full update, the row is shifted to the right
         frameNumber /= (size - ignore) * 10;
+        return setStartPos(frameNumber, lineLumber);
+    }
+
+    @NotNull
+    private FillRingList setStartPos(int frameNumber, int lineLumber) {
         int pos = lineLumber % size;
         pos += (lineLumber % 2 == 0) ? frameNumber % size : -(frameNumber % size);
         if (pos < 0) pos += size;
@@ -166,7 +164,7 @@ public class FillRingList implements Cloneable {
     public Pair<Integer, Integer> next(int pos) {
         // the character is selected according to the position, as if the entire
         // line before it represented this fill layer.
-        if (!FILL_ALIGNMENT && size == 1) return new Pair<>(fillSpacing, WNLayer.get(0).b);
+        if (!FILL_ALIGNMENT && size == 1) return new Pair<>(fillSpacing, WNLayer.getFirst().b);
         pos += startPosPix;
         int pixPos = pos % pixLength;
         int s = select.get(pixPos);
