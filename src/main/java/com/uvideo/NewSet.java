@@ -4,6 +4,7 @@ import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.OpenCVFrameConverter;
 import org.bytedeco.opencv.opencv_java;
+import org.jetbrains.annotations.NotNull;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.imgproc.Imgproc;
@@ -45,14 +46,14 @@ public class NewSet {
      */
 
     private static String fontPatch = "data_set\\fonts\\MS Gothic.ttf";
-    private static final int sizePixels = 16;
+    private static final int sizePixels = 14;
     // the first character must always be a space
     private static final String spaceAnd_default = " /／＼|｜lﾉ＞＜∧";
     private static final String _dontMoveX = "-ｰ一ﾆ二ニ＝ヽﾍ丶ゝ=ノへ";
     private static final String _dontSpin = "<>十七小心厶うフメラ弋イレツシソに";
-    private static final String _dontMove = "¯_\"\\×.,';∠`∈ｌ1ｉi!ΤtLlfDdUuPpHhJｊCcnｒ^７7oＯRrγYy≠≧ｪxｭ≫┴┘└┐┤├()[]" +
-            "ﾚトｲィｨﾏﾔｧﾊハいァアｿﾝﾑﾘリムんこチスゞヾく廴キ人八厂しミる斗孑公少芹乂回云示三从彡込弐曲";
-    private static final String[] _filling = {"ﾐ", "*", "x", "+", ":", "⋅"};
+    private static final String _dontMove = "¯_\"\\×.,';∠`∈ｌ1ｉi!ΤtLlFfdEeUuPpHhJｊCcnRrYyγπ∝√^７7oＯ≠≧ｪxｭ≫┴┘└┐┤├()[]" +
+            "ﾚトｲィｨﾏﾔｧﾊハいァアｿﾝﾑﾘリムんこチスゞヾく廴キ人八厂しミる斗孑公少芹乂回云示三从彡込弐";
+    private static final String[] _filling = {"M", "@", "W", "N", "#", "8", "9", "g", "d", "4", "I", "L", "n", "«", "+", "l", "r", ";", ":", ",", "."};
     private static final String _false = "￣＿｀―ー．′‐─、¨´‘’゛（）⌒";
 
     private static void createCharsTxt(LinkedList<Pair<String, java.util.List<Integer>>> symbols, String outPatch) {
@@ -69,7 +70,7 @@ public class NewSet {
         }
     }
 
-    private static Font chooseSize(Font font, int pixDst) throws FontFormatException {
+    public static Font chooseSize(Font font, int pixDst) throws FontFormatException {
         BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = img.createGraphics();
         float fontSize = pixDst;
@@ -102,6 +103,58 @@ public class NewSet {
         for (String f : _filling)
             train.add(new Pair<>("_filling", f.codePoints().boxed().collect(Collectors.toList())));
         return train;
+    }
+
+    public static Mat createNormalizedCharMat(@NotNull Font mainFont, Font fallbackFont, int codePoint) throws FontFormatException {
+        Font font;
+        if (mainFont.canDisplay(codePoint)) {
+            font = mainFont;
+        }
+        else if (fallbackFont != null && fallbackFont.canDisplay(codePoint)) {
+            font = fallbackFont;
+        }
+        else {
+            throw new FontFormatException("symbol " + codePoint + " cannot be displayed");
+        }
+        BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = img.createGraphics();
+        g2d.setFont(font);
+        FontMetrics fm = g2d.getFontMetrics();
+        int width = fm.charWidth(codePoint);
+        int height = fm.getHeight();
+        g2d.dispose();
+
+        img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        g2d = img.createGraphics();
+        g2d.setColor(Color.WHITE);
+        g2d.fillRect(0, 0, width, height);
+        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+        g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        g2d.setFont(font);
+        fm = g2d.getFontMetrics();
+        g2d.setColor(Color.BLACK);
+        g2d.drawString(String.valueOf(Character.toChars(codePoint)), 0, fm.getAscent());
+        g2d.dispose();
+
+        // normalize the images
+        OpenCVFrameConverter.ToOrgOpenCvCoreMat converter = new OpenCVFrameConverter.ToOrgOpenCvCoreMat();
+        Java2DFrameConverter java2dFrameConverter = new Java2DFrameConverter();
+        Mat matImg = converter.convert(java2dFrameConverter.getFrame(img));
+        if (!Character.isSpaceChar(codePoint)) {
+            Mat gray = new Mat(matImg.rows(), matImg.cols(), COLOR_BGR2GRAY);
+            Imgproc.cvtColor(matImg, gray, COLOR_BGR2GRAY);
+            Mat normalizeImg = new Mat(height, width, CV_8UC1);
+            Core.normalize(gray, normalizeImg, 0, 255, NORM_MINMAX, CV_8UC1);
+            matImg = normalizeImg;
+        }
+
+        return matImg;
     }
 
     public static void main(String[] args) throws Exception {
@@ -141,53 +194,12 @@ public class NewSet {
             int size = fillChars.size(), countFill = 0;
             for (int codePoint : fillChars) {
                 countFill++;
-                Font font;
-                if (mainFont.canDisplay(codePoint)) {
-                    font = mainFont;
-                }
-                else if (fallbackFont.canDisplay(codePoint)) {
-                    font = fallbackFont;
-                }
-                else {
-                    throw new FontFormatException("symbol " + codePoint + " cannot be displayed");
-                }
-                BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
-                Graphics2D g2d = img.createGraphics();
-                g2d.setFont(font);
-                FontMetrics fm = g2d.getFontMetrics();
-                int width = fm.charWidth(codePoint);
-                int height = fm.getHeight();
-                g2d.dispose();
 
-                img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-                g2d = img.createGraphics();
-                g2d.setColor(Color.WHITE);
-                g2d.fillRect(0, 0, width, height);
-                g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-                g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
-                g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-                g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-                g2d.setFont(font);
-                fm = g2d.getFontMetrics();
-                g2d.setColor(Color.BLACK);
-                g2d.drawString(String.valueOf(Character.toChars(codePoint)), 0, fm.getAscent());
-                g2d.dispose();
+                OpenCVFrameConverter.ToOrgOpenCvCoreMat converter = new OpenCVFrameConverter.ToOrgOpenCvCoreMat();
+                Java2DFrameConverter java2dFrameConverter = new Java2DFrameConverter();
+                Mat normalizeImg = createNormalizedCharMat(mainFont, fallbackFont, codePoint);
+                BufferedImage img = java2dFrameConverter.getBufferedImage(converter.convert(normalizeImg));
 
-                if (!Character.isSpaceChar(codePoint)) {
-                    // skip the space bar and normalize the images
-                    OpenCVFrameConverter.ToOrgOpenCvCoreMat converter = new OpenCVFrameConverter.ToOrgOpenCvCoreMat();
-                    Java2DFrameConverter java2dFrameConverter = new Java2DFrameConverter();
-                    Mat matImg = converter.convert(java2dFrameConverter.getFrame(img));
-                    Mat gray = new Mat(matImg.rows(), matImg.cols(), COLOR_BGR2GRAY);
-                    Imgproc.cvtColor(matImg, gray, COLOR_BGR2GRAY);
-                    Mat normalizeImg = new Mat(height, width, CV_8UC1);
-                    Core.normalize(gray, normalizeImg, 0, 255, NORM_MINMAX, CV_8UC1);
-                    img = java2dFrameConverter.getBufferedImage(converter.convert(normalizeImg));
-                }
                 if (size == 1)
                     ImageIO.write(img, "png", new File(String.format(outPatch + "%03d%s.png", count, pair.a)));
                 else
