@@ -160,12 +160,12 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
                 if (currentLayerNumber != number) {
                     fillSNumbersStatic.add(new FillRingList(new Pair<>(symbols.get(sNumber).cols(), sNumber)));
                     currentLayerNumber = number;
-                } else fillSNumbersStatic.get(fillSNumbersStatic.size() - 1)
+                } else fillSNumbersStatic.getLast()
                         .add(new Pair<>(symbols.get(sNumber).cols(), sNumber));
             }
         }
 
-        return symbols.get(0).rows();
+        return symbols.getFirst().rows();
     }
 
     private static Mat rotate(Mat src, double angle) {
@@ -322,8 +322,6 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
 
     @Override
     public void run() {
-        // sorry for this bad code, it's quite compact and there's a lot going on here
-
         //final Random random = new Random(FRAME_NUMBER + LINE_NUMBER);
         int widthPix = threshLine.cols();
         int posPix = 5, leftPix = widthPix - 5, spaceSize = symbols.get(0).cols();
