@@ -38,16 +38,16 @@ public class CharacterSet<T> {
      *  character sets). does not change after loading.
      * flags - (uniqueSize) flags obtained from file names.
      * */
-    private final T[] symbols;
-    private final int size;
-    private final int uniqueSize;
-    private int currentUSize;
+    private final T[]       symbols;
+    private final int       size;
+    private final int       uniqueSize;
+    private       int       currentUSize;
     private final AtomicLong[] used;
     private final boolean[] valid;
-    private final double[] coefficient;
-    private final double[] correction;
-    private final int[] flags;
-    private final char[] chars;
+    private final double[]  coefficient;
+    private final double[]  correction;
+    private final int[]     flags;
+    private final char[]    chars;
     // ~~~~~ Flags ~~~~~
     public static final int DEFAULT = 0;
     public static final int FALSE = -1;
@@ -106,8 +106,8 @@ public class CharacterSet<T> {
                     for (int c = 0; c < s.cols(); c++)
                         for (int r = 0; r < s.rows(); r++)
                             sum += 255. - s.get(r, c)[0];
-                    //cCr = 0.4 + sum / (s.rows() * Math.pow(s.cols(), 0.75) * 127.) + Math.pow(sum, 2) / (Math.pow(s.rows(), 7) * 2.213);
-                    cCr = 1. + Math.pow(sum, 2) / (Math.pow(s.rows(), 7) * 2.213);
+                    cCr = 0.4 + sum / (s.rows() * Math.pow(s.cols(), 0.75) * 127.) + Math.pow(sum, 2) / (Math.pow(s.rows(), 7) * 2.213);
+                    //cCr = 1. + Math.pow(sum, 2) / (Math.pow(s.rows(), 7) * 2.213);
                 }
                 int index = SPIN ? i / 3 : i;
                 if (SPIN && i % 3 == 0) System.out.println("cCr " + index + (this.chars != null ? " " + this.chars[index] : "") + "= " + cCr);
