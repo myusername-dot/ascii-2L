@@ -239,7 +239,8 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
                 else diffsTSum += diff;
             }
 
-        return (diffsSSum + diffsTSum) / colsCoefficient / coefficientCorrection;
+        return (diffsSSum / coefficientCorrection + diffsTSum) / colsCoefficient;
+        // return (diffsSSum + diffsTSum) / colsCoefficient / coefficientCorrection;
     }
 
     private double multi9Compare(int leftPos, Mat symbol, double c, double cCr, int flag) {
@@ -324,7 +325,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
     public void run() {
         //final Random random = new Random(FRAME_NUMBER + LINE_NUMBER);
         int widthPix = threshLine.cols();
-        int posPix = 5, leftPix = widthPix - 5, spaceSize = symbols.get(0).cols();
+        int posPix = 5, maxPosPix = widthPix - 5, spaceSize = symbols.get(0).cols();
         final int spaceNumber = 0;
 
         // waitNextSpace - if the fill symbol is wide enough relative to the space, we can't put it right away,
@@ -332,7 +333,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         // on the second circle again a space falls out of the main contour, and the background again meets the
         // fill requirement (pixel < FILL_DEPTH), we move back and put a wide character.
         boolean isFillChar, waitNextSpace = false;
-        while (leftPix > 10) {
+        while (posPix < maxPosPix) {
             isFillChar = false;
             int sNumber = sSelect(posPix);
             if (sNumber == -1) break;
@@ -357,10 +358,11 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
                         // we will use the wide character in the next step, if the main character is again a space
                         waitNextSpace = true;
                         // in the meantime, we assign the character as a space
-                        sNumber = spaceNumber;
+                        sNumber = spaceNumber; //!!
                         symbol = symbols.get(sNumber);
-                    } else // the alignment is applied when we put the fill symbol
+                    } else {// the alignment is applied when we put the fill symbol
                         posPix += shiftPAndSNumber.a; // if FILL_ALIGNMENT is disabled, this value is always 0
+                    }
 
                     if (widthPix - posPix - symbol.cols() < 2) break;
                     isFillChar = true;
@@ -388,7 +390,6 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
             }
 
             posPix += symbol.cols();
-            leftPix = widthPix - posPix;
         }
 
         latch.countDown();
