@@ -38,24 +38,24 @@ public class CharacterSet<T> {
      *  character sets). does not change after loading.
      * flags - (uniqueSize) flags obtained from file names.
      * */
-    private final T[]       symbols;
-    private final int       size;
-    private final int       uniqueSize;
-    private       int       currentUSize;
+    private final T[]          symbols;
+    private final int          size;
+    private final int          uniqueSize;
+    private       int          currentUSize;
     private final AtomicLong[] used;
-    private final boolean[] valid;
-    private final double[]  coefficient;
-    private final double[]  correction;
-    private final int[]     flags;
-    private final char[]    chars;
+    private final boolean[]    valid;
+    private final double[]     coefficient;
+    private final double[]     correction;
+    private final int[]        flags;
+    private final char[]       chars;
     // ~~~~~ Flags ~~~~~
-    public static final int DEFAULT = 0;
-    public static final int FALSE = -1;
-    public static final int DONT_MOVE_X = 1;
-    public static final int FILLING = 2000;
-    public static final int FILLING_SOLO = 2;
-    public static final int DONT_MOVE = 3;
-    public static final int DONT_SPIN = 4;
+    public static final int FLAG_DEFAULT = 0;
+    public static final int FLAG_FALSE = -1;
+    public static final int FLAG_DONT_MOVE_X = 1;
+    public static final int FLAG_FILLING = 2000;
+    public static final int FLAG_FILLING_SOLO = 2;
+    public static final int FLAG_DONT_MOVE = 3;
+    public static final int FLAG_DONT_SPIN = 4;
 
     public CharacterSet(Class<T> clazz, List<T> symbols, List<Integer> flags, List<Character> chars) {
         if (symbols == null) throw new NullPointerException("symbols == null");
@@ -86,7 +86,7 @@ public class CharacterSet<T> {
             int flag = flags.get(i);
             this.flags[i] = flag;
             used[i] = new AtomicLong(0L);
-            valid[i] = flag != FILLING_SOLO && flag != FALSE && flag / FILLING != 1;
+            valid[i] = flag != FLAG_FILLING_SOLO && flag != FLAG_FALSE && flag / FLAG_FILLING != 1;
             if (this.chars != null) this.chars[i] = chars.get(i);
         }
 
@@ -99,18 +99,18 @@ public class CharacterSet<T> {
                 //(double) symbol.cols() / symbol.rows() / 2.
                 double halfRows = s.rows() / 2.;
                 colsC = Math.pow(s.cols(), 0.75) / halfRows;
-                //-Math.cos(colsC + 0.1) + 1.45
+                //-Math.cos(colsC + 0.1) + 1.45 // smaller range
                 if (colsC < 1.) colsC = -Math.cos(colsC + 0.2) + 1.36;
                 if (i != 0) { // skip space
                     double sum = 0;
                     for (int c = 0; c < s.cols(); c++)
                         for (int r = 0; r < s.rows(); r++)
                             sum += 255. - s.get(r, c)[0];
-                    cCr = 0.4 + sum / (s.rows() * Math.pow(s.cols(), 0.75) * 127.) + Math.pow(sum, 2) / (Math.pow(s.rows(), 7) * 2.213);
+                    cCr = 0.4 + sum / (s.rows() * Math.pow(s.cols(), 0.75) * 127.) + Math.pow(sum, 2) / (Math.pow(s.rows(), 7) * 2.);
                     //cCr = 1. + Math.pow(sum, 2) / (Math.pow(s.rows(), 7) * 2.213);
                 }
                 int index = SPIN ? i / 3 : i;
-                if (SPIN && i % 3 == 0) System.out.println("cCr " + index + (this.chars != null ? " " + this.chars[index] : "") + "= " + cCr);
+                if (SPIN && i % 3 == 0) System.out.println("cCr " + index + (this.chars != null ? " " + this.chars[index] + " " : "") + "= " + cCr);
             } else {
                 Logger.getGlobal().log(Level.WARNING, "!symbol instanceof Mat");
                 break;
