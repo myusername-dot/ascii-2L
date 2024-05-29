@@ -46,7 +46,7 @@ public class MainClass {
      * a symbolic image. the text output will be different, but the output images
      * will be fixed size
      * BACK_SUB - removing a still background, most likely you don't want to use it.
-     * BAW - black and white
+     * BLACK - black background
      * LINE_SPACING - line spacing when capturing and outputting
      * FILL_DEPTH - lower limit for filling the image if the symbol is not
      * represented as a contour.
@@ -58,6 +58,7 @@ public class MainClass {
      * USE_THRESH - applying an openCV adaptive threshold to the original image. you
      * should only disable it if the image is already a binary image of the contours.
      * note that MIN_WEIGHT + DIFF is added to it.
+     * BETTER_THRESH - removed most of the single and double pixels. work if USE_2_THRESH = false
      * USE_2_THRESH - using the second adaptive threshold on top of the first
      * SYMBOLS_FOLDER - when output to text, the folder must contain chars.txt with
      * a sequential enumeration of all characters. changing the order of characters by
@@ -72,7 +73,7 @@ public class MainClass {
     private static final int     CREATE_FRAMES = 0;    // 0 all
     private static final int     SKIPPED_FRAMES = 0;
     private static final boolean BACK_SUB = false;
-    public  static final boolean BAW = true;
+    public  static final boolean BLACK = true;
     public  static final int     LINE_SPACING = 0;
     public  static final double  FILL_DEPTH = 100.;
     public  static final boolean FILL_ALIGNMENT = true;
@@ -81,7 +82,7 @@ public class MainClass {
     private static final boolean USE_CANNY = false;
     private static final boolean USE_THRESH = true;
     private static final boolean USE_2_THRESH = false;
-    private static final boolean BETTER_THRESH = false; // work if USE_2_THRESH = false
+    private static final boolean BETTER_THRESH = false;
     public  static final String  PATCH;
     public  static final String  SYMBOLS_FOLDER = "MS_Gothic.ttf_14_00";
     private static       String  INPUT_FILE_NAME = "sample.webm"; // can be a command line parameter
@@ -216,14 +217,14 @@ public class MainClass {
         executor.shutdown();
 
         Mat fin = new Mat(threshImg.rows(), threshImg.cols(), CV_8UC1, new Scalar(0.));
-        Mat fill = new Mat(threshImg.rows(), threshImg.cols(), CV_8UC1, new Scalar(BAW ? 0. : 255.));
+        Mat fill = new Mat(threshImg.rows(), threshImg.cols(), CV_8UC1, new Scalar(BLACK ? 0. : 255.));
         String[] textFin = new String[numberOfRows];
         for (int i = 0; i < numberOfRows; i++) {
             Mat resultLine = lines.get(i).getResult();
             resultLine.copyTo(fin.submat(new Rect(0,
                     i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT)));
             // creates a notebook effect if the distance between the lines is greater than 2
-            if (!BAW) new Mat(LINE_SPACING / 2, threshImg.cols(), CV_8UC1, new Scalar(255.)).copyTo(fin.
+            if (!BLACK) new Mat(LINE_SPACING / 2, threshImg.cols(), CV_8UC1, new Scalar(255.)).copyTo(fin.
                     submat(new Rect(0, i * (SYMBOL_HEIGHT + LINE_SPACING) + SYMBOL_HEIGHT, threshImg.cols(), LINE_SPACING / 2)));
             Mat fillLine = lines.get(i).getFill();
             fillLine.copyTo(fill.submat(new Rect(0, i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT)));
@@ -280,15 +281,15 @@ public class MainClass {
                     recorder.setVideoCodec(AV_CODEC_ID_VP9);
                     recorder.setVideoBitrate(2500000);
                     recorder.setAudioBitrate(128000);
-                    //                HashMap<String, String> options = new HashMap<>();
-                    //                options.put("codec:v", "libvpx-vp9");
-                    //                options.put("pix_fmt", "yuv420p");
-                    //                options.put("vf", "crop=trunc(iw/2)*2:trunc(ih/2)*2");
-                    //                options.put("b:v", "1500k");
-                    //                options.put("codec:a", "libopus");
-                    //                options.put("b:a", "128k");
-                    //                options.put("ar", "48000");
-                    //                recorder.setOptions(options);
+                    /*HashMap<String, String> options = new HashMap<>();
+                    options.put("codec:v", "libvpx-vp9");
+                    options.put("pix_fmt", "yuv420p");
+                    options.put("vf", "crop=trunc(iw/2)*2:trunc(ih/2)*2");
+                    options.put("b:v", "1500k");
+                    options.put("codec:a", "libopus");
+                    options.put("b:a", "128k");
+                    options.put("ar", "48000");
+                    recorder.setOptions(options);*/
                     recorder.setFormat("webm");
                     recorder.start();
                 }
@@ -338,10 +339,14 @@ public class MainClass {
 
                         Mat thresh, thresh2 = null;
                         if (USE_CANNY) {
+                            // https://docs.opencv.org/4.x/da/d5c/tutorial_canny_detector.html
                             thresh = new Mat(rows, cols, COLOR_BGR2GRAY);
+                            Mat tmp = new Mat(rows, cols, COLOR_BGR2GRAY);
+                            /* reduces the number of parts
+                            Imgproc.blur(grabbedImage, tmp, new Size(3,3));*/
                             Imgproc.Canny(grabbedImage, thresh, 100, 200, 3, false);
-                            // increasing the thickness of the lines
-                            /*float[][] maskValues = {{1, 0, 1}, {0, 1, 0}}; // (1,3) - сдвиг по горизонтали, (2,3) - по вертикали. могут быть отрицательными
+                            /* increasing the thickness of the lines
+                            float[][] maskValues = {{1, 0, 1}, {0, 1, 0}}; // (1,3) - сдвиг по горизонтали, (2,3) - по вертикали. могут быть отрицательными
                             Mat mask = new Mat(2, 3, CV_32FC1);
                             for (int i = 0; i < 2; i++)
                                 for (int j = 0; j < 3; j++)
@@ -349,7 +354,6 @@ public class MainClass {
                             Mat moveRight = new Mat(rows, cols, COLOR_BGR2GRAY);
                             Imgproc.warpAffine(thresh, moveRight, mask, new Size(cols, rows));
                             Core.bitwise_or(thresh, moveRight, tmp);*/
-                            Mat tmp = new Mat(rows, cols, COLOR_BGR2GRAY);
                             // invert the color of the image
                             Core.bitwise_not(thresh, tmp);
                             //thresh = tmp;
@@ -362,12 +366,12 @@ public class MainClass {
                             }
                         }
                         else if (USE_THRESH) {
+                            // https://docs.opencv.org/3.4/d7/d4d/tutorial_py_thresholding.html
                             thresh = new Mat(rows, cols, COLOR_BGR2GRAY);
                             if (!USE_2_THRESH) {
                                 Imgproc.adaptiveThreshold(gray, thresh, 255,
                                         Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
                                         Imgproc.THRESH_BINARY, THRESH_COEFFICIENTS.a, THRESH_COEFFICIENTS.b);
-                                // remove most of the single and double pixels
                                 if (BETTER_THRESH) {
                                     for (int i = 1; i < cols - 1; i++)
                                         for (int j = 1; j < rows - 1; j++) {
@@ -387,7 +391,6 @@ public class MainClass {
                                 Core.add(new Mat(rows, cols, thresh.type(), new Scalar(DIFF)), thresh, dst);
                                 thresh = dst;
                             } else {
-                                // https://docs.opencv.org/3.4/d7/d4d/tutorial_py_thresholding.html
                                 Mat temp = new Mat(rows, cols, COLOR_BGR2GRAY);
                                 Imgproc.GaussianBlur(gray, temp, new Size(5, 5), 0);
                                 Imgproc.threshold(temp, thresh, 0,
@@ -478,6 +481,6 @@ public class MainClass {
             FFmpegLogCallback.set();
         }
     }
-    //BufferedImage biMask = java2dFrameConverter2.getBufferedImage(converter.convert(fgMask));
-    //ImageIO.write(biMask, "png", new File(patch + "mask\\mask-frame-" + f + ".png"));
 }
+//BufferedImage biMask = java2dFrameConverter2.getBufferedImage(converter.convert(fgMask));
+//ImageIO.write(biMask, "png", new File(patch + "mask\\mask-frame-" + f + ".png"));
