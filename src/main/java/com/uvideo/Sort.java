@@ -14,8 +14,13 @@ import java.util.Scanner;
 import java.util.stream.Collectors;
 
 public class Sort {
-    private static final String fontPatch = "data_set\\fonts\\IPAGothic Regular.ttf";
-    private static final int fontPixSize = 14;
+
+    /**
+     * Selecting a gradient based on the brightness of the characters
+     */
+
+    private static final String fontPatch = "data_set\\fonts\\MS Gothic.ttf";
+    private static final int fontPixSize = 16;
     private static final String values = "ﾐABCDEFGHIJKLMNOPQRSTUVWXYZ&zyxwvutsrqponmlkjihgfedcba1234567890@#\"«*=+-;:.,⋅";
 
     public static void main(String[] args) throws IOException, FontFormatException {
@@ -30,8 +35,7 @@ public class Sort {
 
         int[] codePoints = values.codePoints().toArray();
         List<Pair<Integer, Double>> arithmeticMeanWeights = new LinkedList<>();
-        for (int n = 0; n < codePoints.length; n++) {
-            int codePoint = codePoints[n];
+        for (int codePoint : codePoints) {
             Mat charMat = NewSet.createNormalizedCharMat(mainFont, fallbackFont, codePoint);
             double sum = 0.;
             for (int i = 0; i < charMat.rows(); i++)
