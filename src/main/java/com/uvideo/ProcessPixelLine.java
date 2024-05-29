@@ -35,7 +35,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
      * dont_move flags. the result of the calculation will be the smallest sum of
      * the difference obtained from the 3 shifts-SHS +0 and +SHS, respectively.
      * FILL_SPACING - additional distance between fill characters.
-     *
+     * <p>
      * A fill is a character that is added to an image if there is no character representing
      * the outline at that position and the gray image is below the FILL_DEPTH.
      * The fill characters are placed in the fillNumbersStatic array in the order sorted by
@@ -79,34 +79,34 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
             String name = sImage.getName();
             if (name.contains("_false")) {
                 Logger.getGlobal().log(Level.INFO, "set flag -1 " + name);
-                flags.add(FALSE);
+                flags.add(FLAG_FALSE);
             } else if (name.contains("_dont_move_x")) {
                 Logger.getGlobal().log(Level.INFO, "set flag 1 " + name);
-                flags.add(DONT_MOVE_X);
+                flags.add(FLAG_DONT_MOVE_X);
             } else if (name.matches("\\d{3}_filling_\\d{2}\\D*")) {
                 int number = Integer.parseInt(name.substring(0, 3));
-                Logger.getGlobal().log(Level.INFO, "set flag " + (FILLING + number) + " " + name);
-                flags.add(FILLING + number);
+                Logger.getGlobal().log(Level.INFO, "set flag " + (FLAG_FILLING + number) + " " + name);
+                flags.add(FLAG_FILLING + number);
             } else if (name.contains("_filling")) {
                 Logger.getGlobal().log(Level.INFO, "set flag 2 " + name);
-                flags.add(FILLING_SOLO);
+                flags.add(FLAG_FILLING_SOLO);
             } else if (name.contains("_dont_move")) {
                 Logger.getGlobal().log(Level.INFO, "set flag 3 " + name);
-                flags.add(DONT_MOVE);
+                flags.add(FLAG_DONT_MOVE);
             } else if (name.contains("_dont_spin")) {
                 Logger.getGlobal().log(Level.INFO, "set flag 4 " + name);
-                flags.add(DONT_SPIN);
-            } else flags.add(DEFAULT);
+                flags.add(FLAG_DONT_SPIN);
+            } else flags.add(FLAG_DEFAULT);
         }
         List<Mat> symbols, tempSymbols = new ArrayList<>(sImages.size());
         sImages.forEach(i -> tempSymbols.add(Imgcodecs.imread(i.getAbsolutePath(), CV_8UC1)));
 
         if (SPIN) {
             symbols = new ArrayList<>(tempSymbols.size() * 3);
-//            Java2DFrameConverter java2dFrameConverter = new Java2DFrameConverter();
-//            OpenCVFrameConverter.ToOrgOpenCvCoreMat converter = new OpenCVFrameConverter.ToOrgOpenCvCoreMat();
+            /*Java2DFrameConverter java2dFrameConverter = new Java2DFrameConverter();
+            OpenCVFrameConverter.ToOrgOpenCvCoreMat converter = new OpenCVFrameConverter.ToOrgOpenCvCoreMat();
 
-//            int count = 0;
+            int count = 0;*/
             for (Mat symbol : tempSymbols) {
                 Mat white = new Mat(symbol.rows(), symbol.cols(), CV_8UC1, new Scalar(255));
                 Mat invSymbol = new Mat(symbol.rows(), symbol.cols(), CV_8UC1);
@@ -117,33 +117,20 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
                 temp = rotate(invSymbol, -8.);
                 Mat rRight = new Mat(symbol.rows(), symbol.cols(), CV_8UC1);
                 Core.subtract(white, temp, rRight);
-//                try {
-//                    BufferedImage bi = java2dFrameConverter.getBufferedImage(converter.convert(rLeft));
-//                    ImageIO.write(bi, "png", new File(MainClass.PATCH + "rotated_symbols\\s-" + count + "-l.png"));
-//                    bi = java2dFrameConverter.getBufferedImage(converter.convert(rRight));
-//                    ImageIO.write(bi, "png", new File(MainClass.PATCH + "rotated_symbols\\s-" + count + "-r.png"));
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
+                /*try {
+                    BufferedImage bi = java2dFrameConverter.getBufferedImage(converter.convert(rLeft));
+                    ImageIO.write(bi, "png", new File(MainClass.PATCH + "rotated_symbols\\s-" + count + "-l.png"));
+                    bi = java2dFrameConverter.getBufferedImage(converter.convert(rRight));
+                    ImageIO.write(bi, "png", new File(MainClass.PATCH + "rotated_symbols\\s-" + count + "-r.png"));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }*/
                 symbols.add(symbol);
                 symbols.add(rLeft);
                 symbols.add(rRight);
-//                count++;
+                //count++;
             }
         } else symbols = tempSymbols;
-//        for (Mat s : symbols) {
-//            for (int i = 0; i < s.rows(); i++)
-//                for (int j = 0; j < s.cols(); j++) {
-//                    double v = s.get(i, j)[0];
-////                    if (v <= 255. - MainClass.DIFF + 30. && v > 255. - MainClass.DIFF) { // 170..140
-////                        v -= -255. + MainClass.DIFF + 1.;
-//                    if (v <= 255. - DIFF + 20.) {
-//                        v -= 20;
-//                        if (v < 0.) v = 0.;
-//                        s.put(i, j, v);
-//                    }
-//                }
-//        }
 
         ProcessPixelLine.symbols = new CharacterSet<>(Mat.class, symbols, flags, chars);
 
@@ -153,10 +140,10 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         for (int i = 0; i < symbolsFlags.size(); i++) {
             int flag = symbolsFlags.get(i);
             int sNumber = SPIN ? i * 3 : i;
-            if (flag == FILLING_SOLO) fillSNumbersStatic.add(new FillRingList(
+            if (flag == FLAG_FILLING_SOLO) fillSNumbersStatic.add(new FillRingList(
                     new Pair<>(symbols.get(sNumber).cols(), sNumber)));
-            else if (flag / FILLING == 1) {
-                int number = flag % FILLING;
+            else if (flag / FLAG_FILLING == 1) {
+                int number = flag % FLAG_FILLING;
                 if (currentLayerNumber != number) {
                     fillSNumbersStatic.add(new FillRingList(new Pair<>(symbols.get(sNumber).cols(), sNumber)));
                     currentLayerNumber = number;
@@ -194,10 +181,10 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         this.threshLine = thresh1Line;
         this.grayLine = grayLine;
         this.thresh2Line = thresh2Line;
-        dstLine = new Mat(thresh1Line.rows(), thresh1Line.cols(), CV_8UC1, new Scalar(BAW ? 0 : 255));
+        dstLine = new Mat(thresh1Line.rows(), thresh1Line.cols(), CV_8UC1, new Scalar(BLACK ? 0 : 255));
         if (symbols.haveChars()) dstTextLine = new StringBuffer(thresh1Line.cols() / SYMBOL_HEIGHT / 2);
         else dstTextLine = null;
-        fillLine = new Mat(thresh1Line.rows(), thresh1Line.cols(), CV_8UC1, new Scalar(BAW ? 0 : 255));
+        fillLine = new Mat(thresh1Line.rows(), thresh1Line.cols(), CV_8UC1, new Scalar(BLACK ? 0 : 255));
 
         fillSNumbers = new ArrayList<>(fillSNumbersStatic.size());
         for (var n : fillSNumbersStatic) {
@@ -240,19 +227,19 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
             }
 
         return (diffsSSum / coefficientCorrection + diffsTSum) / colsCoefficient;
-        // return (diffsSSum + diffsTSum) / colsCoefficient / coefficientCorrection;
+        //return (diffsSSum + diffsTSum) / colsCoefficient / coefficientCorrection;
     }
 
     private double multi9Compare(int leftPos, Mat symbol, double c, double cCr, int flag) {
         // Center
         double diff, bestC = compare(leftPos + SYMBOL_HORIZONTAL_SHIFT, symbol, c, cCr, Move.CENTER);
-        if (flag == DONT_MOVE) return bestC;
+        if (flag == FLAG_DONT_MOVE) return bestC;
         diff = compare(leftPos + SYMBOL_HORIZONTAL_SHIFT, symbol, c, cCr, Move.UP);
         if (bestC > diff) bestC = diff;
         diff = compare(leftPos + SYMBOL_HORIZONTAL_SHIFT, symbol, c, cCr, Move.DOWN);
         if (bestC > diff) bestC = diff;
         //if (bestC < 50) return 0;
-        if (flag != DONT_MOVE_X) {
+        if (flag != FLAG_DONT_MOVE_X) {
             // Left
             diff = compare(leftPos, symbol, c, cCr, Move.CENTER);
             if (bestC > diff) bestC = diff;
@@ -296,7 +283,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
             }
 
             int flag = symbols.getFlag(i);
-            if (SPIN && i % 3 != 0 && (flag == DONT_SPIN || flag == DONT_MOVE)) continue;
+            if (SPIN && i % 3 != 0 && (flag == FLAG_DONT_SPIN || flag == FLAG_DONT_MOVE)) continue;
 
             double diff = multi9Compare(pos - SYMBOL_HORIZONTAL_SHIFT, symbol, symbols.getCoefficient(i), symbols.getCorrection(i), flag);
             if (diff == 0) return i;
@@ -310,7 +297,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
     }
 
     private void addPixSymbol(Mat symbol, int pos, boolean isFilling) {
-        if (BAW) {
+        if (BLACK) {
             Mat temp = new Mat(symbol.rows(), symbol.cols(), CV_8UC1);
             Core.subtract(new Mat(symbol.rows(), symbol.cols(), CV_8UC1, new Scalar(255.)), symbol, temp);
             symbol = temp;
