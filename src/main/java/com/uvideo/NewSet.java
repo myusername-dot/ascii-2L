@@ -27,6 +27,7 @@ import static org.opencv.imgproc.Imgproc.COLOR_BGR2GRAY;
 public class NewSet {
 
     /**
+     * Symbol flags:
      * _default - these characters have the greatest advantage in matching.
      * _dont_move_x - symbols that are useless or harmful to move on the x-axis. For example,
      * because of the movement on the x, the character may be displayed where it should not be
@@ -45,16 +46,16 @@ public class NewSet {
      * directory by file names, if you add a string to the end of the name, this will not happen.
      */
 
-    private static String fontPatch = "data_set\\fonts\\MS Gothic.ttf";
-    private static final int sizePixels = 14;
-    // the first character must always be a space
-    private static final String spaceAnd_default = " /／＼|｜lﾉ＞＜∧";
-    private static final String _dontMoveX = "-ｰ一ﾆ二ニ＝ヽﾍ丶ゝ=ノへ";
-    private static final String _dontSpin = "<>十七小心厶うフメラ弋イレツシソに";
-    private static final String _dontMove = "¯_\"\\×.,';∠`∈ｌ1ｉi!ΤtLlFfdEeUuPpHhJｊCcnRrYyγπ∝√^７7oＯ≠≧ｪxｭ≫┴┘└┐┤├()[]" +
-            "ﾚトｲィｨﾏﾔｧﾊハいァアｿﾝﾑﾘリムんこチスゞヾく廴キ人八厂しミる斗孑公少芹乂回云示三从彡込弐";
-    private static final String[] _filling = {"M", "@", "W", "N", "#", "8", "9", "g", "d", "4", "I", "L", "n", "«", "+", "l", "r", ";", ":", ",", "."};
-    private static final String _false = "￣＿｀―ー．′‐─、¨´‘’゛（）⌒";
+    private static       String   fontPatch = "data_set\\fonts\\MS Gothic.ttf";
+    private static final int      sizePixels = 16; //it is best to use 14-16
+
+    private static final String   _default = "/／＼|｜lﾉ＞＜∧";
+    private static final String   _dontMoveX = "-ｰ一ﾆ二ニ＝ヽﾍ丶ゝ=ノへ";
+    private static final String   _dontSpin = "<>十七小心厶うフメラ弋イレツシソに";
+    private static final String   _dontMove = "¯_\"\\×.,';∠`∈ｌ1ｉi!ΤtlFfdEeUuPpHhJｊCcnRrYyγπ∝√^７7oＯ≠≧ｪxｭ≫┴┘└┐┤├()[]" +
+            "ﾚトｲィｨﾏﾔｧﾊハいァアｿﾝﾑﾘリムんこチスゞヾく廴キ人八厂しミる斗孑公少芹乂云示三从彡込弐";
+    private static final String[] _filling = {"&", "0", "S", "m", "h", "p", "a", "n", "s", "c", "v", "j", "l", "r", "+", "i", "\"", "-", ";", ":", "."};
+    private static final String   _false = "￣＿｀―ー．′‐─、¨´‘’゛（）⌒回";
 
     private static void createCharsTxt(LinkedList<Pair<String, java.util.List<Integer>>> symbols, String outPatch) {
         int count = 0;
@@ -90,8 +91,10 @@ public class NewSet {
 
     private static LinkedList<Pair<String, java.util.List<Integer>>> buildSTrain() {
         LinkedList<Pair<String, java.util.List<Integer>>> train = new LinkedList<>();
+        // adding space char to first position
+        train.add(new Pair<>("", List.of(" ".codePoints().toArray()[0])));
         // adding basic symbols and flags for them
-        for (int cp : spaceAnd_default.codePoints().toArray())
+        for (int cp : _default.codePoints().toArray())
             train.add(new Pair<>("", List.of(cp)));
         for (int cp : _dontMoveX.codePoints().toArray())
             train.add(new Pair<>("_dont_move_x", List.of(cp)));
@@ -159,7 +162,6 @@ public class NewSet {
 
     public static void main(String[] args) throws Exception {
         if (args.length > 0) fontPatch = args[0];
-        //it is best to use 14-16
         int fontPixSize = args.length > 1 ? Integer.parseInt(args[1]) : sizePixels;
         Font mainFont = Font.createFont(Font.TRUETYPE_FONT, new File(fontPatch)).deriveFont((float) fontPixSize);
         mainFont = chooseSize(mainFont, fontPixSize);
