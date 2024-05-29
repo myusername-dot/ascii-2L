@@ -11,7 +11,8 @@ import static com.uvideo.ProcessPixelLine.FILL_SPACING;
 
 public class FillRingList implements Cloneable {
 
-    /**size - size of WNLayer.
+    /**
+     * size - size of WNLayer.
      * WNLayer - contains the value a-the width of the character, b-the number
      *  of the character in the usual order. Added in the ProcessPixelLine
      *  constructor if the character is marked as a fill character. It usually
@@ -22,7 +23,8 @@ public class FillRingList implements Cloneable {
      * select - contains a pointer to which position corresponds to which character.
      * startPos, startPosPix - the symbol and the position at which this fill layer
      *  should start.
-     * */
+     */
+
     private static final int fillSpacing = FILL_ALIGNMENT ? FILL_SPACING : 0;
 
     private List<Pair<Integer, Integer>> WNLayer;
