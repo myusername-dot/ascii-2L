@@ -94,7 +94,7 @@ public class MainClass {
     private static final boolean OUTPUT_ORIGINAL_FRAMES = false;
     public  static       int     SYMBOL_HEIGHT; // automatic
     private static final List<File> symbols;
-    private static final List<Character> chars;
+    private static final List<Integer> codePoints;
     private static final Pair<Integer, Integer> THRESH_COEFFICIENTS;
 
     static {
@@ -147,22 +147,22 @@ public class MainClass {
             e.printStackTrace();
         }
 
-        chars = new ArrayList<>(symbols.size());
+        codePoints = new ArrayList<>(symbols.size());
         try (Scanner sc = new Scanner(new File(PATCH + SYMBOLS_FOLDER + "\\chars.txt"))) {
             while (sc.hasNext()) {
                 String str = sc.nextLine();
-                if (!str.isEmpty()) chars.add(str.charAt(str.length() - 1));
+                if (!str.isEmpty()) codePoints.add(str.codePointAt(str.length() - 1));
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
 
         try {
-            if (chars.isEmpty()) Logger.getGlobal().log(Level.INFO, "chars.size() == 0");
-            else if (symbols.size() != chars.size())
+            if (codePoints.isEmpty()) Logger.getGlobal().log(Level.INFO, "chars.size() == 0");
+            else if (symbols.size() != codePoints.size())
                 throw new IllegalArgumentException("symbols.size() = " + symbols.size()
-                        + " != chars.size() = " + chars.size());
-            SYMBOL_HEIGHT = ProcessPixelLine.setSymbols(symbols, chars);
+                        + " != chars.size() = " + codePoints.size());
+            SYMBOL_HEIGHT = ProcessPixelLine.setSymbols(symbols, codePoints);
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
             System.exit(-1);
@@ -177,7 +177,7 @@ public class MainClass {
     }
 
     private static void writeLinesToFile(String[] lines, String filename) {
-        if (!chars.isEmpty()) {
+        if (!codePoints.isEmpty()) {
             File file = new File(PATCH + "text\\" + filename);
             try (PrintWriter writer = new PrintWriter(file, StandardCharsets.UTF_8)) {
                 for (var line : lines)
@@ -228,7 +228,7 @@ public class MainClass {
                     submat(new Rect(0, i * (SYMBOL_HEIGHT + LINE_SPACING) + SYMBOL_HEIGHT, threshImg.cols(), LINE_SPACING / 2)));
             Mat fillLine = lines.get(i).getFill();
             fillLine.copyTo(fill.submat(new Rect(0, i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT)));
-            if (!chars.isEmpty()) textFin[i] = lines.get(i).getTextResult();
+            if (!codePoints.isEmpty()) textFin[i] = lines.get(i).getTextResult();
         }
 
         if (OUTPUT_TEXT)

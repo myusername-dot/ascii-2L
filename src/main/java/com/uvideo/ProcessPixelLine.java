@@ -5,9 +5,7 @@ import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -70,7 +68,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
 
     private enum Move {CENTER, LEFT, UP, RIGHT, DOWN}
 
-    public static int setSymbols(List<File> sImages, List<Character> chars) throws IllegalArgumentException {
+    public static int setSymbols(List<File> sImages, List<Integer> chars) throws IllegalArgumentException {
         if (sImages == null || sImages.isEmpty())
             throw new IllegalArgumentException("sImages == null || sImages.size() == 0");
 
@@ -310,7 +308,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
 
     @Override
     public void run() {
-        //final Random random = new Random(FRAME_NUMBER + LINE_NUMBER);
+        final Random random = new Random(FRAME_NUMBER + LINE_NUMBER);
         int widthPix = threshLine.cols();
         int posPix = 5, maxPosPix = widthPix - 5, spaceSize = symbols.get(0).cols();
         final int spaceNumber = 0;
@@ -357,20 +355,31 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
 
             } else waitNextSpace = false;
 
-            // writing a text character
-            Optional<Character> charOp = symbols.getChar(sNumber);
-            if (dstTextLine != null && charOp.isPresent()) {
-                char c = charOp.get();
-                //if (c == 'r') c = (char) (random.nextInt(8) + 50);
-                // it will work in the second round, just before waitNextSpace becomes false
-                if (sNumber != spaceNumber && waitNextSpace)
-                    dstTextLine.deleteCharAt(dstTextLine.length() - 1); // remove the extra space
-                dstTextLine.append(c);
+            Optional<Integer> cpOp = symbols.getCodePoint(sNumber);
+            String cpString = null;
+            Integer cp = null;
+            if (cpOp.isPresent()) {
+                cp = cpOp.get();
+                cpString = Arrays.toString(Character.toChars(cp));
+                //if (cpString.equals('0')) cpString = (char) (random.nextInt(8) + 50);
+                // writing a text character
+                if (dstTextLine != null) {
+                    // it will work in the second round, just before waitNextSpace becomes false
+                    if (sNumber != spaceNumber && waitNextSpace)
+                        dstTextLine.deleteCharAt(dstTextLine.length() - 1); // remove the extra space
+                    // code point!
+                    dstTextLine.appendCodePoint(cp);
+                }
             }
 
             // printing a pixel character
             // the pixel line is filled with white or black pixels by default
             if (sNumber != spaceNumber) {
+                if (cpString != null && cpString.equals("0")) {
+                    cp = String.valueOf(random.nextInt(8) + 50).codePointAt(0);
+                    if (symbols.getByCodePoint(cp) != null)
+                        symbol = symbols.getByCodePoint(cp);
+                }
                 addPixSymbol(symbol, posPix, isFillChar);
                 posPix += SYMBOL_SPACING;
                 waitNextSpace = false;

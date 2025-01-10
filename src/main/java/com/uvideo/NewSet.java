@@ -54,7 +54,9 @@ public class NewSet {
     private static final String   _dontSpin = "<>十七小心厶うフメラ弋イレツシソに";
     private static final String   _dontMove = "¯_\"\\×.,';∠`∈ｌ1ｉi!ΤtlFfdEeUuPpHhJｊCcnRrYyγπ∝√^７7oＯ≠≧ｪxｭ≫┴┘└┐┤├()[]" +
             "ﾚトｲィｨﾏﾔｧﾊハいァアｿﾝﾑﾘリムんこチスゞヾく廴キ人八厂しミる斗孑公少芹乂云示三从彡込弐";
-    private static final String[] _filling = {"&", "0", "S", "m", "h", "p", "a", "n", "s", "c", "v", "j", "l", "r", "+", "i", "\"", "-", ";", ":", "."};
+    private static final String[] _filling = {"&", "0", "S", "m", "h", "p", "a", "n", "s", "c", "v", "j", "l", "r", "+", "i", "\"", "-", ";", ":", ".",
+    "0","1","2","3","4","5","6","7","8","9"
+    };
     private static final String   _false = "￣＿｀―ー．′‐─、¨´‘’゛（）⌒回";
 
     private static void createCharsTxt(LinkedList<Pair<String, java.util.List<Integer>>> symbols, String outPatch) {

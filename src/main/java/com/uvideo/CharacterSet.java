@@ -47,7 +47,8 @@ public class CharacterSet<T> {
     private final double[]     coefficient;
     private final double[]     correction;
     private final int[]        flags;
-    private final char[]       chars;
+    private final int[]        codePoints;
+    private final HashMap<Integer, T> symbolsByCodePoints;
     // ~~~~~ Flags ~~~~~
     public static final int FLAG_DEFAULT = 0;
     public static final int FLAG_FALSE = -1;
@@ -57,13 +58,13 @@ public class CharacterSet<T> {
     public static final int FLAG_DONT_MOVE = 3;
     public static final int FLAG_DONT_SPIN = 4;
 
-    public CharacterSet(Class<T> clazz, List<T> symbols, List<Integer> flags, List<Character> chars) {
+    public CharacterSet(Class<T> clazz, List<T> symbols, List<Integer> flags, List<Integer> codePoints) {
         if (symbols == null) throw new NullPointerException("symbols == null");
         size = symbols.size();
-        if (chars != null && !chars.isEmpty()) {
-            if (chars.size() != flags.size())
+        if (codePoints != null && !codePoints.isEmpty()) {
+            if (codePoints.size() != flags.size())
                 throw new IllegalArgumentException("chars != null && chars.size() != 0 && chars.size() != flags.size()");
-            if (SPIN && size / 3 != chars.size() || !SPIN && size != chars.size())
+            if (SPIN && size / 3 != codePoints.size() || !SPIN && size != codePoints.size())
                 throw new IllegalArgumentException("chars != null && chars.size() != 0 && SPIN && symbols.size() / 3 != chars.size() || !SPIN && symbols.size() != chars.size()");
         }
         if (SPIN && size / 3 != flags.size() || !SPIN && size != flags.size())
@@ -75,8 +76,13 @@ public class CharacterSet<T> {
 
         this.symbols = (T[]) Array.newInstance(clazz, size);
         this.flags = new int[uniqueSize];
-        if (chars != null && !chars.isEmpty()) this.chars = new char[uniqueSize];
-        else this.chars = null;
+        if (codePoints != null && !codePoints.isEmpty()) {
+            this.codePoints = new int[uniqueSize];
+            this.symbolsByCodePoints = new HashMap<>();
+        } else {
+            this.codePoints = null;
+            this.symbolsByCodePoints = null;
+        }
         used = new AtomicLong[uniqueSize];
         valid = new boolean[uniqueSize];
         coefficient = new double[size];
@@ -87,7 +93,9 @@ public class CharacterSet<T> {
             this.flags[i] = flag;
             used[i] = new AtomicLong(0L);
             valid[i] = flag != FLAG_FILLING_SOLO && flag != FLAG_FALSE && flag / FLAG_FILLING != 1;
-            if (this.chars != null) this.chars[i] = chars.get(i);
+            if (this.codePoints != null) {
+                this.codePoints[i] = codePoints.get(i);
+            }
         }
 
         for (int i = 0; i < size; i++) {
@@ -109,8 +117,14 @@ public class CharacterSet<T> {
                     cCr = 0.4 + sum / (s.rows() * Math.pow(s.cols(), 0.75) * 127.) + Math.pow(sum, 2) / (Math.pow(s.rows(), 7) * 2.);
                     //cCr = 1. + Math.pow(sum, 2) / (Math.pow(s.rows(), 7) * 2.213);
                 }
-                int index = SPIN ? i / 3 : i;
-                if (SPIN && i % 3 == 0) System.out.println("cCr " + index + (this.chars != null ? " " + this.chars[index] + " " : "") + "= " + cCr);
+
+                if (!SPIN || i % 3 == 0) {
+                    int index = SPIN ? i / 3 : i;
+                    if (this.codePoints != null) {
+                        this.symbolsByCodePoints.put(this.codePoints[index], symbol);
+                    }
+                    System.out.println("cCr " + index + (this.codePoints != null ? " " + this.codePoints[index] + " " : "") + "= " + cCr);
+                }
             } else {
                 Logger.getGlobal().log(Level.WARNING, "!symbol instanceof Mat");
                 break;
@@ -130,6 +144,13 @@ public class CharacterSet<T> {
     public T getUnique(int index) {
         if (SPIN) index /= 3;
         return symbols[index];
+    }
+
+    public T getByCodePoint(Integer c) {
+        if (c == null || symbolsByCodePoints == null) {
+            return null;
+        }
+        return symbolsByCodePoints.get(c);
     }
 
     public double getCoefficient(int index) {
@@ -163,24 +184,24 @@ public class CharacterSet<T> {
     }
 
     public boolean haveChars() {
-        return chars != null;
+        return codePoints != null;
     }
 
-    public Optional<Character> getChar(int index) {
-        if (this.chars == null)
+    public Optional<Integer> getCodePoint(int index) {
+        if (this.codePoints == null)
             return Optional.empty();
         if (SPIN) index /= 3;
-        return Optional.of(chars[index]);
+        return Optional.of(codePoints[index]);
     }
 
-    public List<Integer> getNumbersWithFlag(int flag){
+    public List<Integer> getNumbersWithFlag(int flag) {
         List<Integer> n = new ArrayList<>();
         for (int i = 0; i < uniqueSize; i++)
             if (flags[i] == flag) n.add(i);
         return n;
     }
 
-    public List<Integer> getNumbersWithFlags(Predicate<Integer> p){
+    public List<Integer> getNumbersWithFlags(Predicate<Integer> p) {
         List<Integer> n = new ArrayList<>();
         for (int i = 0; i < uniqueSize; i++)
             if (p.test(flags[i])) n.add(i);
@@ -202,8 +223,8 @@ public class CharacterSet<T> {
     public void removeMostRarelyUsed(double percent) {
         IntStream.range(1, uniqueSize)
                 .boxed()
-                .filter(i->valid[i])
-                .collect(Collectors.toMap(i->i, i->used[i].get()))
+                .filter(i -> valid[i])
+                .collect(Collectors.toMap(i -> i, i -> used[i].get()))
                 .entrySet()
                 .stream()
                 .sorted(Map.Entry.<Integer, Long>comparingByValue().reversed())
@@ -217,8 +238,8 @@ public class CharacterSet<T> {
     public void removeMostOftenUsed(double percent) {
         IntStream.range(1, uniqueSize)
                 .boxed()
-                .filter(i->valid[i])
-                .collect(Collectors.toMap(i->i, i->used[i].get()))
+                .filter(i -> valid[i])
+                .collect(Collectors.toMap(i -> i, i -> used[i].get()))
                 .entrySet()
                 .stream()
                 .sorted(Map.Entry.comparingByValue())
@@ -256,18 +277,18 @@ public class CharacterSet<T> {
     public String toString() {
         StringBuffer buffer = new StringBuffer();
         Formatter fmt = new Formatter(buffer);
-        Character c = null;
+        Integer c = null;
         if (SPIN)
             for (int i = 0; i < size / 3; i++) {
-                if (chars != null) c = chars[i];
+                if (codePoints != null) c = codePoints[i];
                 fmt.format("char=%s number=%d used=%d valid=%b c=%f cCr=%f flag=%d\r\n",
-                        c, i + 1, used[i].get(), valid[i], coefficient[i * 3], correction[i * 3], flags[i]);
+                        Arrays.toString(Character.toChars(c)), i + 1, used[i].get(), valid[i], coefficient[i * 3], correction[i * 3], flags[i]);
             }
         else
             for (int i = 0; i < size; i++) {
-                if (chars != null) c = chars[i];
+                if (codePoints != null) c = codePoints[i];
                 fmt.format("char=%s number=%d used=%d valid=%b c=%f cCr=%f flag=%d\r\n",
-                        c, i + 1, used[i].get(), valid[i], coefficient[i], correction[i], flags[i]);
+                        Arrays.toString(Character.toChars(c)), i + 1, used[i].get(), valid[i], coefficient[i], correction[i], flags[i]);
             }
         return buffer.toString();
     }
