@@ -24,6 +24,7 @@ import org.bytedeco.javacv.*;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.opencv.opencv_java;
+import org.jetbrains.annotations.NotNull;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.video.BackgroundSubtractor;
@@ -73,7 +74,8 @@ public class MainClass {
     private static final int     CREATE_FRAMES = 0;    // 0 all
     private static final int     SKIPPED_FRAMES = 0;
     private static final boolean BACK_SUB = false;
-    public  static final boolean BLACK = true;
+    public  static final boolean BLACK_BACKGROUND = true;
+    public  static final boolean COLORED = true;
     public  static final int     LINE_SPACING = 0;
     public  static final double  FILL_DEPTH = 100.;
     public  static final boolean FILL_ALIGNMENT = true;
@@ -188,10 +190,10 @@ public class MainClass {
         }
     }
 
-    private static Pair<Mat, Mat> createUtf8Mat(Mat threshImg, Mat grayImg, Mat thresh2Img, int fNumber) {
+    private static Pair<Mat, Mat> createUtf8Mat(@NotNull Mat threshImg, Mat rgbImg, Mat grayImg, Mat thresh2Img, int fNumber) {
         final int numberOfRows = grayImg.rows() / (SYMBOL_HEIGHT + LINE_SPACING);
         CountDownLatch cdl = new CountDownLatch(numberOfRows);
-        int nOfThreads = Runtime.getRuntime().availableProcessors() - 1;
+        int nOfThreads = Runtime.getRuntime().availableProcessors() - 3;
         ArrayList<ProcessLine<Mat>> lines = new ArrayList<>(numberOfRows);
         ExecutorService executor = Executors.newFixedThreadPool(nOfThreads);
 
@@ -201,11 +203,13 @@ public class MainClass {
                     i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT));
             Mat grayLine = grayImg.submat(new Rect(0,
                     i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT));
+            Mat rgbLine = rgbImg.submat(new Rect(0,
+                    i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT));
             if (thresh2Img != null) {
                 Mat thresh2Line = thresh2Img.submat(new Rect(0,
                         i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT));
-                lines.add(new ProcessPixelLine(threshLine, grayLine, thresh2Line, cdl));
-            } else lines.add(new ProcessPixelLine(threshLine, grayLine, fNumber, i + 1, cdl));
+                lines.add(new ProcessPixelLine(threshLine, rgbLine, grayLine, thresh2Line, cdl));
+            } else lines.add(new ProcessPixelLine(threshLine, rgbLine, grayLine, fNumber, i + 1, cdl));
             executor.execute(lines.get(i));
         }
 
@@ -216,16 +220,37 @@ public class MainClass {
         }
         executor.shutdown();
 
-        Mat fin = new Mat(threshImg.rows(), threshImg.cols(), CV_8UC1, new Scalar(0.));
-        Mat fill = new Mat(threshImg.rows(), threshImg.cols(), CV_8UC1, new Scalar(BLACK ? 0. : 255.));
+        Mat fin = new Mat(
+                threshImg.rows(), threshImg.cols(),
+                COLORED ? CV_8UC3: CV_8UC1,
+                COLORED ? new Scalar(0., 0., 0.) : new Scalar(0.)
+        );
+        double bckgrColor = BLACK_BACKGROUND ? 0. : 255.;
+        Mat fill = new Mat(
+                threshImg.rows(), threshImg.cols(),
+                COLORED ? CV_8UC3: CV_8UC1,
+                COLORED ? new Scalar(bckgrColor, bckgrColor, bckgrColor) : new Scalar(bckgrColor)
+        );
         String[] textFin = new String[numberOfRows];
         for (int i = 0; i < numberOfRows; i++) {
             Mat resultLine = lines.get(i).getResult();
-            resultLine.copyTo(fin.submat(new Rect(0,
-                    i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT)));
+            resultLine.copyTo(fin.submat(new Rect(0, i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT)));
             // creates a notebook effect if the distance between the lines is greater than 2
-            if (!BLACK) new Mat(LINE_SPACING / 2, threshImg.cols(), CV_8UC1, new Scalar(255.)).copyTo(fin.
-                    submat(new Rect(0, i * (SYMBOL_HEIGHT + LINE_SPACING) + SYMBOL_HEIGHT, threshImg.cols(), LINE_SPACING / 2)));
+            if (!BLACK_BACKGROUND) {
+                new Mat(
+                        LINE_SPACING / 2, threshImg.cols(),
+                        COLORED ? CV_8UC3: CV_8UC1,
+                        COLORED ? new Scalar(255., 255., 255.) : new Scalar(255.)
+                )
+                        .copyTo(
+                        fin.submat(
+                                new Rect(
+                                        0, i * (SYMBOL_HEIGHT + LINE_SPACING) + SYMBOL_HEIGHT,
+                                        threshImg.cols(), LINE_SPACING / 2
+                                )
+                        )
+                );
+            }
             Mat fillLine = lines.get(i).getFill();
             fillLine.copyTo(fill.submat(new Rect(0, i * (SYMBOL_HEIGHT + LINE_SPACING), threshImg.cols(), SYMBOL_HEIGHT)));
             if (!codePoints.isEmpty()) textFin[i] = lines.get(i).getTextResult();
@@ -337,14 +362,14 @@ public class MainClass {
                         Mat gray = new Mat(rows, cols, COLOR_BGR2GRAY);
                         Imgproc.cvtColor(grabbedImage, gray, COLOR_BGR2GRAY);
 
-                        Mat thresh, thresh2 = null;
+                        Mat thresh1, thresh2 = null;
                         if (USE_CANNY) {
                             // https://docs.opencv.org/4.x/da/d5c/tutorial_canny_detector.html
-                            thresh = new Mat(rows, cols, COLOR_BGR2GRAY);
+                            thresh1 = new Mat(rows, cols, COLOR_BGR2GRAY);
                             Mat tmp = new Mat(rows, cols, COLOR_BGR2GRAY);
                             /* reduces the number of parts
                             Imgproc.blur(grabbedImage, tmp, new Size(3,3));*/
-                            Imgproc.Canny(grabbedImage, thresh, 100, 200, 3, false);
+                            Imgproc.Canny(grabbedImage, thresh1, 100, 200, 3, false);
                             /* increasing the thickness of the lines
                             float[][] maskValues = {{1, 0, 1}, {0, 1, 0}}; // (1,3) - сдвиг по горизонтали, (2,3) - по вертикали. могут быть отрицательными
                             Mat mask = new Mat(2, 3, CV_32FC1);
@@ -355,64 +380,64 @@ public class MainClass {
                             Imgproc.warpAffine(thresh, moveRight, mask, new Size(cols, rows));
                             Core.bitwise_or(thresh, moveRight, tmp);*/
                             // invert the color of the image
-                            Core.bitwise_not(thresh, tmp);
+                            Core.bitwise_not(thresh1, tmp);
                             //thresh = tmp;
                             // it seems to be better this way?
-                            blurFineLines(tmp, thresh);
+                            blurFineLines(tmp, thresh1);
 
                             if (OUTPUT_CANNY) {
-                                BufferedImage bi = java2dFrameConverter.getBufferedImage(converter.convert(thresh));
+                                BufferedImage bi = java2dFrameConverter.getBufferedImage(converter.convert(thresh1));
                                 ImageIO.write(bi, "png", new File(PATCH + "canny\\canny-" + vFrNumber + ".png"));
                             }
                         }
                         else if (USE_THRESH) {
                             // https://docs.opencv.org/3.4/d7/d4d/tutorial_py_thresholding.html
-                            thresh = new Mat(rows, cols, COLOR_BGR2GRAY);
+                            thresh1 = new Mat(rows, cols, COLOR_BGR2GRAY);
                             if (!USE_2_THRESH) {
-                                Imgproc.adaptiveThreshold(gray, thresh, 255,
+                                Imgproc.adaptiveThreshold(gray, thresh1, 255,
                                         Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
                                         Imgproc.THRESH_BINARY, THRESH_COEFFICIENTS.a, THRESH_COEFFICIENTS.b);
                                 if (BETTER_THRESH) {
                                     for (int i = 1; i < cols - 1; i++)
                                         for (int j = 1; j < rows - 1; j++) {
-                                            double c = thresh.get(j, i)[0];
+                                            double c = thresh1.get(j, i)[0];
                                             if (c == 255.) continue;
-                                            double l = thresh.get(j, i - 1)[0];
-                                            double r = thresh.get(j, i + 1)[0];
-                                            double u = thresh.get(j - 1, i)[0];
-                                            double d = thresh.get(j + 1, i)[0];
+                                            double l = thresh1.get(j, i - 1)[0];
+                                            double r = thresh1.get(j, i + 1)[0];
+                                            double u = thresh1.get(j - 1, i)[0];
+                                            double d = thresh1.get(j + 1, i)[0];
                                             if (l + r + u + d >= 255. * 3) {
-                                                thresh.put(j, i, 255., 255., 255.);
+                                                thresh1.put(j, i, 255., 255., 255.);
                                             }
                                         }
                                 }
                                 // "lighten" the weight of the maximum black pixels
-                                Mat dst = new Mat(rows, cols, thresh.type());
-                                Core.add(new Mat(rows, cols, thresh.type(), new Scalar(DIFF)), thresh, dst);
-                                thresh = dst;
+                                Mat dst = new Mat(rows, cols, thresh1.type());
+                                Core.add(new Mat(rows, cols, thresh1.type(), new Scalar(DIFF)), thresh1, dst);
+                                thresh1 = dst;
                             } else {
                                 Mat temp = new Mat(rows, cols, COLOR_BGR2GRAY);
                                 Imgproc.GaussianBlur(gray, temp, new Size(5, 5), 0);
-                                Imgproc.threshold(temp, thresh, 0,
+                                Imgproc.threshold(temp, thresh1, 0,
                                         255,
                                         Imgproc.THRESH_BINARY + THRESH_OTSU);
                                 thresh2 = new Mat(rows, cols, COLOR_BGR2GRAY);
-                                Imgproc.adaptiveThreshold(thresh, thresh2, 255,
+                                Imgproc.adaptiveThreshold(thresh1, thresh2, 255,
                                         Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
                                         Imgproc.THRESH_BINARY, 3, 2);
-                                Mat temp2 = thresh;
-                                thresh = thresh2;
+                                Mat temp2 = thresh1;
+                                thresh1 = thresh2;
                                 thresh2 = temp2;
                                 // it seems to be better this way
-                                blurFineLines(thresh, temp);
-                                thresh = temp;
+                                blurFineLines(thresh1, temp);
+                                thresh1 = temp;
                             }
                             if (BACK_SUB) {
                                 Mat invMask = new Mat();
                                 Core.bitwise_not(fgMask, invMask);
                                 Mat useMask = new Mat();
-                                Core.bitwise_or(invMask, thresh, useMask);
-                                thresh = useMask;
+                                Core.bitwise_or(invMask, thresh1, useMask);
+                                thresh1 = useMask;
                             }
                             if (OUTPUT_THRESH) {
                                 BufferedImage bi;
@@ -420,13 +445,13 @@ public class MainClass {
                                     bi = java2dFrameConverter.getBufferedImage(converter.convert(thresh2));
                                     ImageIO.write(bi, "png", new File(PATCH + "thresh\\thresh2-" + vFrNumber + ".png"));
                                 }
-                                bi = java2dFrameConverter.getBufferedImage(converter.convert(thresh));
+                                bi = java2dFrameConverter.getBufferedImage(converter.convert(thresh1));
                                 ImageIO.write(bi, "png", new File(PATCH + "thresh\\thresh1-" + vFrNumber + ".png"));
                             }
                         }
-                        else thresh = gray;
+                        else thresh1 = gray;
 
-                        Pair<Mat, Mat> result = createUtf8Mat(thresh, gray, thresh2, vFrNumber);
+                        Pair<Mat, Mat> result = createUtf8Mat(thresh1, grabbedImage, gray, thresh2, vFrNumber);
 
                         Frame convFr = converter.convert(result.a);
                         if (HEIGHT != convFr.imageHeight) {
