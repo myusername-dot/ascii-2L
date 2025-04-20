@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 import static com.uvideo.CharacterSet.*;
 import static com.uvideo.MainClass.*;
 import static org.opencv.core.CvType.CV_8UC1;
+import static org.opencv.core.CvType.CV_8UC3;
 import static org.opencv.imgproc.Imgproc.getRotationMatrix2D;
 import static org.opencv.imgproc.Imgproc.warpAffine;
 
@@ -61,7 +62,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
     private final int LINE_NUMBER;
     private final int FRAME_NUMBER;
     private final List<FillRingList> fillSNumbers;
-    private final Mat threshLine, grayLine, thresh2Line;
+    private final Mat thresh1Line, rgbLine, grayLine, thresh2Line;
     private final Mat dstLine, fillLine;
     private final StringBuffer dstTextLine;
     private final CountDownLatch latch;
@@ -167,22 +168,35 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         return symbols;
     }
 
-    private ProcessPixelLine(@NotNull Mat thresh1Line, Mat grayLine, Mat thresh2Line,
+    private ProcessPixelLine(@NotNull Mat thresh1Line, Mat rgbLine, Mat grayLine, Mat thresh2Line,
                              CountDownLatch latch, int numberF, int numberL, boolean swap) {
         if (symbols == null)
             throw new NullPointerException("symbols are null, use setSymbols()");
         if (/*threshLine.type() != CV_8U || */thresh1Line.rows() != MainClass.SYMBOL_HEIGHT || thresh1Line.cols() < 100)
             throw new IllegalArgumentException("threshLine.rows() != 14 || threshLine.cols() < 100");
+        if (COLORED && rgbLine == null) {
+            throw new IllegalArgumentException("COLORED && rgbLine == null");
+        }
 
         LINE_NUMBER = numberL;
         FRAME_NUMBER = numberF;
-        this.threshLine = thresh1Line;
+        this.thresh1Line = thresh1Line;
+        this.rgbLine = rgbLine;
         this.grayLine = grayLine;
         this.thresh2Line = thresh2Line;
-        dstLine = new Mat(thresh1Line.rows(), thresh1Line.cols(), CV_8UC1, new Scalar(BLACK ? 0 : 255));
+        double bckgrColor = BLACK_BACKGROUND ? 0. : 255.;
+        dstLine = new Mat(
+                thresh1Line.rows(), thresh1Line.cols(),
+                COLORED ? CV_8UC3: CV_8UC1,
+                COLORED ? new Scalar(bckgrColor, bckgrColor, bckgrColor) : new Scalar(bckgrColor)
+        );
         if (symbols.haveChars()) dstTextLine = new StringBuffer(thresh1Line.cols() / SYMBOL_HEIGHT / 2);
         else dstTextLine = null;
-        fillLine = new Mat(thresh1Line.rows(), thresh1Line.cols(), CV_8UC1, new Scalar(BLACK ? 0 : 255));
+        fillLine = new Mat(
+                thresh1Line.rows(), thresh1Line.cols(),
+                COLORED ? CV_8UC3: CV_8UC1,
+                COLORED ? new Scalar(bckgrColor, bckgrColor, bckgrColor) : new Scalar(bckgrColor)
+        );
 
         fillSNumbers = new ArrayList<>(fillSNumbersStatic.size());
         for (var n : fillSNumbersStatic) {
@@ -196,16 +210,16 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         this.latch = latch;
     }
 
-    public ProcessPixelLine(Mat threshLine, CountDownLatch latch) {
-        this(threshLine, null, null, latch, -1, -1, false);
+    public ProcessPixelLine(Mat thresh1Line, CountDownLatch latch) {
+        this(thresh1Line, null, null, null, latch, -1, -1, false);
     }
 
-    public ProcessPixelLine(Mat threshLine, Mat grayLine, int numberF, int numberL, CountDownLatch latch) {
-        this(threshLine, grayLine, null, latch, numberF, numberL, false);
+    public ProcessPixelLine(Mat thresh1Line, Mat rgbLine, Mat grayLine, int numberF, int numberL, CountDownLatch latch) {
+        this(thresh1Line, rgbLine, grayLine, null, latch, numberF, numberL, false);
     }
 
-    public ProcessPixelLine(Mat thresh1Line, Mat grayLine, Mat thresh2Line, CountDownLatch latch) {
-        this(thresh1Line, grayLine, thresh2Line, latch, -1, -1, false);
+    public ProcessPixelLine(Mat thresh1Line, Mat rgbLine, Mat grayLine, Mat thresh2Line, CountDownLatch latch) {
+        this(thresh1Line, rgbLine, grayLine, thresh2Line, latch, -1, -1, false);
     }
 
     private double compare(int pos, Mat symbol, double colsCoefficient, double coefficientCorrection, Move moveH) {
@@ -217,7 +231,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
                 else if (moveH == Move.UP && i != 0) s = symbol.get(i - 1, j)[0];
                 else if (moveH == Move.DOWN && i != symbol.rows() - 1) s = symbol.get(i + 1, j)[0];
                 else s = 255.;
-                t = threshLine.get(i, pos + j)[0];
+                t = thresh1Line.get(i, pos + j)[0];
                 diff = s - t;
                 if (Math.abs(diff) <= DIFF) continue;
                 if (diff < 0) diffsSSum -= diff;
@@ -260,7 +274,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
     }
 
     private int sSelect(int pos) {
-        int width = threshLine.cols() - pos;
+        int width = thresh1Line.cols() - pos;
         if (width < 8) return -1;
         final int spacePosNumber = 0;
         int best = -1;
@@ -295,10 +309,56 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
     }
 
     private void addPixSymbol(Mat symbol, int pos, boolean isFilling) {
-        if (BLACK) {
-            Mat temp = new Mat(symbol.rows(), symbol.cols(), CV_8UC1);
-            Core.subtract(new Mat(symbol.rows(), symbol.cols(), CV_8UC1, new Scalar(255.)), symbol, temp);
+        if (BLACK_BACKGROUND) {
+            Mat temp = new Mat(
+                    symbol.rows(), symbol.cols(),
+                    CV_8UC1
+            );
+            Core.subtract(new Mat(
+                    symbol.rows(), symbol.cols(),
+                    CV_8UC1,
+                    new Scalar(255.)
+            ), symbol, temp);
             symbol = temp;
+        }
+        if (COLORED) {
+            int symbolPixels = symbol.rows() * symbol.cols();
+            Mat temp = new Mat(
+                    symbol.rows(), symbol.cols(),
+                    CV_8UC3
+            );
+            double avgColor1 = 0., avgColor2 = 0, avgColor3 = 0;
+            for (int i = 0; i < symbol.rows(); i++)
+                for (int j = 0; j < symbol.cols(); j++) {
+                    double sPix = symbol.get(i, j)[0];
+                    temp.put(i, j, sPix, sPix, sPix);
+                    if (isFilling) {
+                        avgColor1 += rgbLine.get(i, pos + j)[0];
+                        avgColor2 += rgbLine.get(i, pos + j)[1];
+                        avgColor3 += rgbLine.get(i, pos + j)[2];
+                    }
+                }
+            if (isFilling) {
+                avgColor1 = avgColor1 / symbolPixels + 50;
+                avgColor2 = avgColor2 / symbolPixels + 50;
+                avgColor3 = avgColor3 / symbolPixels + 50;
+                Mat colorMask = new Mat(
+                        symbol.rows(), symbol.cols(),
+                        CV_8UC3,
+                        new Scalar(avgColor1, avgColor2, avgColor3)
+                );
+                Mat temp2 = new Mat(
+                        symbol.rows(), symbol.cols(),
+                        CV_8UC3
+                );
+
+                if (BLACK_BACKGROUND) Core.bitwise_and(colorMask, temp, temp2);
+                else Core.bitwise_or(colorMask, temp, temp2);
+
+                symbol = temp2;
+            } else {
+                symbol = temp;
+            }
         }
         if (SPLIT_FILL && isFilling)
             symbol.copyTo(fillLine.submat(new Rect(pos, 0, symbol.cols(), symbol.rows())));
@@ -309,7 +369,7 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
     @Override
     public void run() {
         final Random random = new Random(FRAME_NUMBER + LINE_NUMBER);
-        int widthPix = threshLine.cols();
+        int widthPix = thresh1Line.cols();
         int posPix = 5, maxPosPix = widthPix - 5, spaceSize = symbols.get(0).cols();
         final int spaceNumber = 0;
 
