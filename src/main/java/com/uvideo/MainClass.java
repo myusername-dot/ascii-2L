@@ -49,7 +49,6 @@ public class MainClass {
      * a symbolic image. the text output will be different, but the output images
      * will be fixed size
      * BACK_SUB - removing a still background, most likely you don't want to use it.
-     * BLACK - black background
      * LINE_SPACING - line spacing when capturing and outputting
      * FILL_DEPTH - lower limit for filling the image if the symbol is not
      * represented as a contour.
