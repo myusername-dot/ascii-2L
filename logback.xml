@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <pattern>%d %5p [%file:%line]  - %m%n</pattern>
+        </layout>
+    </appender>
+
+    <logger name="org.uamlog">
+        <level value="INFO"/>
+    </logger>
+    <logger name="org.uamlog">
+        <level value="WARN"/>
+    </logger>
+    <logger name="org.uamlog">
+        <level value="ERROR"/>
+    </logger>
+    <logger name="org.uamlog">
+        <level value="DEBUG"/>
+    </logger>
+    <logger name="org.uamlog">
+        <level value="TRACE"/>
+    </logger>
+    <root>
+        <level value="WARN"/>
+
+        <appender-ref ref="CONSOLE"/>
+    </root>
+    <root>
+        <level value="INFO"/>
+
+        <appender-ref ref="CONSOLE"/>
+    </root>
+    <root>
+        <level value="DEBUG"/>
+
+        <appender-ref ref="CONSOLE"/>
+    </root>
+    <root>
+        <level value="TRACE"/>
+
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

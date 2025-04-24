@@ -1,5 +1,6 @@
 package com.uvideo;
 
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
@@ -17,6 +18,7 @@ import static org.opencv.core.CvType.CV_8UC3;
 import static org.opencv.imgproc.Imgproc.getRotationMatrix2D;
 import static org.opencv.imgproc.Imgproc.warpAffine;
 
+@Slf4j
 public class ProcessPixelLine implements ProcessLine<Mat> {
 
     /**
@@ -77,23 +79,23 @@ public class ProcessPixelLine implements ProcessLine<Mat> {
         for (File sImage : sImages) {
             String name = sImage.getName();
             if (name.contains("_false")) {
-                Logger.getGlobal().log(Level.INFO, "set flag -1 " + name);
+                log.info("set flag -1 " + name);
                 flags.add(FLAG_FALSE);
             } else if (name.contains("_dont_move_x")) {
-                Logger.getGlobal().log(Level.INFO, "set flag 1 " + name);
+                log.info("set flag 1 " + name);
                 flags.add(FLAG_DONT_MOVE_X);
             } else if (name.matches("\\d{3}_filling_\\d{2}\\D*")) {
                 int number = Integer.parseInt(name.substring(0, 3));
-                Logger.getGlobal().log(Level.INFO, "set flag " + (FLAG_FILLING + number) + " " + name);
+                log.info("set flag " + (FLAG_FILLING + number) + " " + name);
                 flags.add(FLAG_FILLING + number);
             } else if (name.contains("_filling")) {
-                Logger.getGlobal().log(Level.INFO, "set flag 2 " + name);
+                log.info("set flag 2 " + name);
                 flags.add(FLAG_FILLING_SOLO);
             } else if (name.contains("_dont_move")) {
-                Logger.getGlobal().log(Level.INFO, "set flag 3 " + name);
+                log.info("set flag 3 " + name);
                 flags.add(FLAG_DONT_MOVE);
             } else if (name.contains("_dont_spin")) {
-                Logger.getGlobal().log(Level.INFO, "set flag 4 " + name);
+                log.info("set flag 4 " + name);
                 flags.add(FLAG_DONT_SPIN);
             } else flags.add(FLAG_DEFAULT);
         }

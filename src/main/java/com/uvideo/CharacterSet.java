@@ -1,6 +1,7 @@
 package com.uvideo;
 
 import com.google.common.primitives.Booleans;
+import lombok.extern.slf4j.Slf4j;
 import org.opencv.core.Mat;
 
 import java.io.File;
@@ -18,6 +19,7 @@ import java.util.stream.IntStream;
 
 import static com.uvideo.MainClass.*;
 
+@Slf4j
 public class CharacterSet<T> {
 
     /**I used to think about using vector images, and this class was supposed to be universal, but
@@ -126,7 +128,7 @@ public class CharacterSet<T> {
                     System.out.println("cCr " + index + (this.codePoints != null ? " " + this.codePoints[index] + " " : "") + "= " + cCr);
                 }
             } else {
-                Logger.getGlobal().log(Level.WARNING, "!symbol instanceof Mat");
+                log.warn("!symbol instanceof Mat");
                 break;
             }
             coefficient[i] = colsC;
@@ -134,7 +136,7 @@ public class CharacterSet<T> {
         }
 
         currentUSize = (int) (Booleans.asList(valid).stream().filter(Boolean::booleanValue).count());
-        Logger.getGlobal().log(Level.INFO, "number of valid characters without fill: " + currentUSize);
+        log.info("number of valid characters without fill: " + currentUSize);
     }
 
     public T get(int index) {
@@ -232,7 +234,7 @@ public class CharacterSet<T> {
                 .forEach(u -> valid[u.getKey()] = false);
         int before = currentUSize;
         currentUSize = (int) (Booleans.asList(valid).stream().filter(Boolean::booleanValue).count());
-        Logger.getGlobal().log(Level.INFO, "Ignore " + (before - currentUSize) + " symbols");
+        log.info("Ignore " + (before - currentUSize) + " symbols");
     }
 
     public void removeMostOftenUsed(double percent) {
@@ -247,7 +249,7 @@ public class CharacterSet<T> {
                 .forEach(u -> valid[u.getKey()] = false);
         int before = currentUSize;
         currentUSize = (int) (Booleans.asList(valid).stream().filter(Boolean::booleanValue).count());
-        Logger.getGlobal().log(Level.INFO, "Ignore " + (before - currentUSize) + " symbols");
+        log.info("Ignore " + (before - currentUSize) + " symbols");
     }
 
     public void removeNull() {
@@ -255,7 +257,7 @@ public class CharacterSet<T> {
             if (used[i].get() <= 10L) valid[i] = false;
         int before = currentUSize;
         currentUSize = (int) (Booleans.asList(valid).stream().filter(Boolean::booleanValue).count());
-        Logger.getGlobal().log(Level.INFO, "Ignore " + (before - currentUSize) + " symbols");
+        log.info("Ignore " + (before - currentUSize) + " symbols");
     }
 
     public void outputStatsToFile() {

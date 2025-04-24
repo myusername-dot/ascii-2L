@@ -17,6 +17,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
+import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacv.*;
@@ -38,6 +39,7 @@ import static org.opencv.core.CvType.*;
 import static org.opencv.imgproc.Imgproc.*;
 
 
+@Slf4j
 public class MainClass {
 
     /**
@@ -68,33 +70,33 @@ public class MainClass {
      * as an argument to MainClass, with any full path.
      */
 
-    private static final int     HEIGHT = 480;
-    private static final double  FLUCTUATIONS_HEIGHT = 0.;
-    private static final int     FRAMERATE = 0;        // 0 as source
-    private static final int     CREATE_FRAMES = 0;    // 0 all
-    private static final int     SKIPPED_FRAMES = 0;
-    private static final boolean BACK_SUB = false;
-    public  static final boolean BLACK_BACKGROUND = true;
-    public  static final boolean COLORED = true;
-    public  static final int     LINE_SPACING = 0;
-    public  static final double  FILL_DEPTH = 100.;
-    public  static final boolean FILL_ALIGNMENT = true;
-    public  static final boolean SPLIT_FILL = false;
-    public  static final boolean SPIN = true;
-    private static final boolean USE_CANNY = false;
-    private static final boolean USE_THRESH = true;
-    private static final boolean USE_2_THRESH = false;
-    private static final boolean BETTER_THRESH = false;
-    public  static final String  PATCH;
-    public  static final String  SYMBOLS_FOLDER = "MS_Gothic.ttf_14_00";
-    private static       String  INPUT_FILE_NAME = "sample.webm"; // can be a command line parameter
-    public  static final boolean OUTPUT_FRAMES = true;
-    private static final boolean OUTPUT_VIDEO = true;
-    private static final boolean OUTPUT_CANNY = true;
-    private static final boolean OUTPUT_THRESH = true;
-    private static final boolean OUTPUT_TEXT = true;
+    public  static final String  SYMBOLS_FOLDER =         "MS_Gothic.ttf_14_00";
+    private static       String  INPUT_FILE_NAME =        "sample.webm";
+    private static final int     HEIGHT =                 480;
+    private static final double  FLUCTUATIONS_HEIGHT =    0.;
+    private static final int     FRAMERATE =              0; // 0 as source
+    private static final int     CREATE_FRAMES =          0; // 0 all
+    private static final int     SKIPPED_FRAMES =         0;
+    public  static final int     LINE_SPACING =           0;
+    public  static final double  FILL_DEPTH =             100.;
+    private static final boolean BACK_SUB =               false;
+    public  static final boolean BLACK_BACKGROUND =       true;
+    public  static final boolean COLORED =                true;
+    public  static final boolean FILL_ALIGNMENT =         true;
+    public  static final boolean SPLIT_FILL =             false;
+    public  static final boolean SPIN =                   true;
+    private static final boolean USE_CANNY =              false;
+    private static final boolean USE_THRESH =             true;
+    private static final boolean USE_2_THRESH =           false;
+    private static final boolean BETTER_THRESH =          false;
+    public  static final boolean OUTPUT_FRAMES =          true;
+    private static final boolean OUTPUT_VIDEO =           true;
+    private static final boolean OUTPUT_CANNY =           true;
+    private static final boolean OUTPUT_THRESH =          true;
+    private static final boolean OUTPUT_TEXT =            true;
     private static final boolean OUTPUT_ORIGINAL_FRAMES = false;
     public  static       int     SYMBOL_HEIGHT; // automatic
+    public  static final String  PATCH;
     private static final List<File> symbols;
     private static final List<Integer> codePoints;
     private static final Pair<Integer, Integer> THRESH_COEFFICIENTS;
@@ -160,7 +162,7 @@ public class MainClass {
         }
 
         try {
-            if (codePoints.isEmpty()) Logger.getGlobal().log(Level.INFO, "chars.size() == 0");
+            if (codePoints.isEmpty()) log.info("chars.size() == 0");
             else if (symbols.size() != codePoints.size())
                 throw new IllegalArgumentException("symbols.size() = " + symbols.size()
                         + " != chars.size() = " + codePoints.size());
@@ -455,7 +457,7 @@ public class MainClass {
 
                         Frame convFr = converter.convert(result.a);
                         if (HEIGHT != convFr.imageHeight) {
-                            Logger.getGlobal().log(Level.INFO, "wtf");
+                            log.info("wtf HEIGHT != convFr.imageHeight");
                             int frameWidth = (int) ((double) HEIGHT / convFr.imageHeight * convFr.imageWidth);
                             convFr = java2dFrameConverter.convert(resize(java2dFrameConverter.convert(convFr), frameWidth, HEIGHT));
                         }
